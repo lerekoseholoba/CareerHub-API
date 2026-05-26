@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "AB4iapapQZE=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\20202\\Desktop\\Conference_Room_Booking_API\\CareerHub_API\\CareerHub_API.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\20202\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.8\\microsoft.aspnetcore.openapi.10.0.8.nupkg.sha512",
+    "C:\\Users\\20202\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512",
+    "C:\\Users\\20202\\.nuget\\packages\\scalar.aspnetcore\\2.14.14\\scalar.aspnetcore.2.14.14.nupkg.sha512"
+  ],
+  "logs": []
+}
