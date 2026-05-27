@@ -52,5 +52,27 @@ public class JobsController : ControllerBase
             new { id = job.Id },
             job);
     }
+     [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateJob(int id, UpdateJobRequest request)
+    {
+        var updatedJob = await _jobService.UpdateJobAsync(id, request);
+
+        if (updatedJob == null)
+            return NotFound();
+
+        return Ok(updatedJob);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteJob(int id)
+    {
+        var deleted = await _jobService.DeleteJobAsync(id);
+
+        if (!deleted)
+            return NotFound();
+
+        return NoContent();
+    }
+
 
 }
