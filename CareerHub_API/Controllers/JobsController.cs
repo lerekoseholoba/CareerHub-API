@@ -31,4 +31,26 @@ public class JobsController : ControllerBase
 
         return Ok(job);
     }
+
+    [HttpPost]
+    public async Task<IActionResult> CreateJob(CreateJobRequest request)
+    {
+        var job = await _jobService.CreateJobAsync(request);
+
+        if (job == null)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Duplicate job listing",
+                Detail = "A job with the same title and company already exists.",
+                Status = 409
+            });
+        }
+
+        return CreatedAtAction(
+            nameof(GetJobById),
+            new { id = job.Id },
+            job);
+    }
+
 }
