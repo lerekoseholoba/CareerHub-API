@@ -1,7 +1,10 @@
-using CareerHub_Api.Models;
+using CareerHub_API.Models;
+using CareerHub_API.DTOs;
+using CareerHub_API.Data;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Components.Web;
 
-namespace CareerHub_Api.Controllers;
+namespace CareerHub_API.Controllers;
 
 [ApiController]
 [Route("jobs")]

@@ -1,6 +1,7 @@
-using CareerHub_Api.DTOs;
-using CareerHub_Api.Models;
+using CareerHub_API.DTOs;
+using CareerHub_API.Models;
 
+namespace CareerHub_API.Data;
 public class JobService
 {
     private static readonly List<JobListing> _jobs = new()

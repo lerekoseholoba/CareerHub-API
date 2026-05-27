@@ -1,4 +1,4 @@
-namespace CareerHub_Api.Models;
+namespace CareerHub_API.Models;
 
 public enum JobType
 {

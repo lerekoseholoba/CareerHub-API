@@ -1,4 +1,4 @@
-namespace CareerHub_Api.DTOs;
+namespace CareerHub_API.DTOs;
 
 public class UpdateJobRequest : CreateJobRequest
 {

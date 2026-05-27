@@ -1,6 +1,6 @@
-using CareerHub_Api.Models;
+using CareerHub_API.Models;
 
-namespace CareerHub_Api.DTOs;
+namespace CareerHub_API.DTOs;
 
 public class JobResponse
 {

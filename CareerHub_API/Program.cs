@@ -1,5 +1,6 @@
 using Scalar.AspNetCore;
 using System.Text.Json.Serialization;
+using CareerHub_API.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
