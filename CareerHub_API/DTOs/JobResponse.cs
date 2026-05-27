@@ -1,6 +1,8 @@
-namespace CareerHub_API.Models;
+using CareerHub_API.Models;
 
-public class JobListing
+namespace CareerHub_API.DTOs;
+
+public class JobResponse
 {
     public int Id { get; set; }
 
@@ -18,8 +20,9 @@ public class JobListing
 
     public decimal? SalaryMax { get; set; }
 
-    // Server-owned fields
     public DateTime PostedAt { get; set; }
 
     public bool IsActive { get; set; }
+
+    public string SalaryDisplay { get; set; } = string.Empty;
 }
