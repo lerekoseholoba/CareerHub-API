@@ -1,8 +1,15 @@
 using Scalar.AspNetCore;
 using System.Text.Json.Serialization;
 using CareerHub_API.Data;
+using Serilog;
+using CareerHub_API.Middleware;
 
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateLogger();
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
+
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -19,12 +26,14 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddOpenApi();
 
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+
 var app = builder.Build();
 
-// Handles unhandled exceptions globally
 app.UseExceptionHandler();
 
-// Returns Problem Details for empty 404/400 responses
+app.UseSerilogRequestLogging();
+
 app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())

@@ -1,5 +1,6 @@
 using CareerHub_API.DTOs;
 using CareerHub_API.Models;
+using CareerHub_API.Exceptions;
 
 namespace CareerHub_API.Data;
 public class JobService
@@ -31,8 +32,9 @@ public class JobService
         var job = _jobs.FirstOrDefault(j => j.Id == id);
 
         if (job == null)
-            return Task.FromResult<JobResponse?>(null);
-
+        {
+           throw new JobNotFoundException(id);
+        }
         return Task.FromResult<JobResponse?>(MapToResponse(job));
     }
 
@@ -43,7 +45,11 @@ public class JobService
             && j.Company.Equals(request.Company, StringComparison.OrdinalIgnoreCase));
 
         if (duplicate)
-            return Task.FromResult<JobResponse?>(null);
+        {
+          throw new DuplicateJobListingException(
+          request.Title,
+          request.Company);
+        }
 
         var job = new JobListing
         {
@@ -68,9 +74,10 @@ public class JobService
     {
         var job = _jobs.FirstOrDefault(j => j.Id == id);
 
-        if (job == null)
-            return Task.FromResult<JobResponse?>(null);
-
+       if (job == null)
+       {
+        throw new JobNotFoundException(id);
+       }
         job.Title = request.Title;
         job.Company = request.Company;
         job.Location = request.Location;
@@ -82,12 +89,14 @@ public class JobService
         return Task.FromResult<JobResponse?>(MapToResponse(job));
     }
 
-    public Task<bool> DeleteJobAsync(int id)
+    public Task DeleteJobAsync(int id)
     {
         var job = _jobs.FirstOrDefault(j => j.Id == id);
 
         if (job == null)
-            return Task.FromResult(false);
+        {
+         throw new JobNotFoundException(id);
+        }
 
         _jobs.Remove(job);
 
