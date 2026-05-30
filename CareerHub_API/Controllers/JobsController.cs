@@ -27,55 +27,37 @@ public class JobsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetJobById(int id)
     {
-        var job = await _jobService.GetJobByIdAsync(id);
+       var job = await _jobService.GetJobByIdAsync(id);
 
-        if (job == null)
-            return NotFound();
-
-        return Ok(job);
+       return Ok(job);
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateJob(CreateJobRequest request)
     {
-        var job = await _jobService.CreateJobAsync(request);
+       var job = await _jobService.CreateJobAsync(request);
 
-        if (job == null)
-        {
-            return Conflict(new ProblemDetails
-            {
-                Title = "Duplicate job listing",
-                Detail = "A job with the same title and company already exists.",
-                Status = 409
-            });
-        }
-
-        return CreatedAtAction(
-            nameof(GetJobById),
-            new { id = job.Id },
-            job);
+       return CreatedAtAction(
+        nameof(GetJobById),
+        new { id = job.Id },
+        job);
     }
-     [HttpPut("{id}")]
+    
+    [HttpPut("{id}")]
     public async Task<IActionResult> UpdateJob(int id, UpdateJobRequest request)
     {
-        var updatedJob = await _jobService.UpdateJobAsync(id, request);
+    var updatedJob =
+        await _jobService.UpdateJobAsync(id, request);
 
-        if (updatedJob == null)
-            return NotFound();
-
-        return Ok(updatedJob);
+    return Ok(updatedJob);
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteJob(int id)
     {
-        var deleted = await _jobService.DeleteJobAsync(id);
+    await _jobService.DeleteJobAsync(id);
 
-        if (!deleted)
-            return NotFound();
-
-        return NoContent();
+    return NoContent();
     }
-
 
 }
