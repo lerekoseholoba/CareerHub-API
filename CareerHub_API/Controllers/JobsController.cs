@@ -2,7 +2,7 @@ using CareerHub_API.Models;
 using CareerHub_API.DTOs;
 using CareerHub_API.Data;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CareerHub_API.Controllers;
 
@@ -17,6 +17,8 @@ public class JobsController : ControllerBase
         _jobService = jobService;
     }
 
+    //  PUBLIC: Get all jobs
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetAllJobs()
     {
@@ -24,40 +26,46 @@ public class JobsController : ControllerBase
         return Ok(jobs);
     }
 
+    //  PUBLIC: Get job by id
+    [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetJobById(int id)
     {
-       var job = await _jobService.GetJobByIdAsync(id);
-
-       return Ok(job);
+        var job = await _jobService.GetJobByIdAsync(id);
+        return Ok(job);
     }
 
+    //  PROTECTED: Create job (Employer only)
+    [Authorize(Roles = "Employer")]
     [HttpPost]
     public async Task<IActionResult> CreateJob(CreateJobRequest request)
     {
-       var job = await _jobService.CreateJobAsync(request);
+        var job = await _jobService.CreateJobAsync(request);
 
-       return CreatedAtAction(
-        nameof(GetJobById),
-        new { id = job.Id },
-        job);
+        return CreatedAtAction(
+            nameof(GetJobById),
+            new { id = job.Id },
+            job
+        );
     }
-    
+
+    //  PROTECTED: Update job (Employer only)
+    [Authorize(Roles = "Employer")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateJob(int id, UpdateJobRequest request)
     {
-    var updatedJob =
-        await _jobService.UpdateJobAsync(id, request);
+        var updatedJob =
+            await _jobService.UpdateJobAsync(id, request);
 
-    return Ok(updatedJob);
+        return Ok(updatedJob);
     }
 
+    //  PROTECTED: Delete job (Employer only)
+    [Authorize(Roles = "Employer")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteJob(int id)
     {
-    await _jobService.DeleteJobAsync(id);
-
-    return NoContent();
+        await _jobService.DeleteJobAsync(id);
+        return NoContent();
     }
-
 }
