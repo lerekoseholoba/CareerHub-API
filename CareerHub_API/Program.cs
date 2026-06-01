@@ -21,7 +21,6 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(
             new JsonStringEnumConverter());
     });
-
 //Register Services
 builder.Services.AddSingleton<JobService>();
 builder.Services.AddProblemDetails();
@@ -31,7 +30,7 @@ builder.Services.AddCors(options =>
     {
      options.AddPolicy("FrontEndPolicy", policy =>
      {
-        policy.WithOrigins("http://localhost:3000") // front end dev port
+        policy.WithOrigins("http://localhost:3000") // only sites with this origin can call this API
         .AllowAnyHeader() //Allows authorization, Content-Type, etc
         .AllowAnyMethod(); //Allows GET,POST,DELETE etc.. 
      }); 
@@ -64,8 +63,8 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 if (app.Environment.IsDevelopment())
 {
+    app.MapOpenApi();
+    app.MapScalarApiReference();
 }
-app.MapOpenApi();
-app.MapScalarApiReference();
 app.MapControllers();
 app.Run();

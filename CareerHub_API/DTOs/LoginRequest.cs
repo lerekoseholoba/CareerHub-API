@@ -1,4 +1,3 @@
-namespace API.DTOs;
-public record LoginRequest(
-    string username,
-    string Password);
+namespace CareerHub_API.DTOs;
+
+public record LoginRequest(string Username, string Password);

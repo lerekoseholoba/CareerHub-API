@@ -1,3 +1,3 @@
-namespace API.DTOs;
+namespace CareerHub_API.DTOs;
 
 public record LoginResponse(string Token); 
