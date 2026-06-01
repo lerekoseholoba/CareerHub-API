@@ -19,29 +19,33 @@ builder.Services.AddControllers()
             new JsonStringEnumConverter());
     });
 
+//Register Services
 builder.Services.AddSingleton<JobService>();
-
-// Adds RFC 7807 Problem Details support
 builder.Services.AddProblemDetails();
-
 builder.Services.AddOpenApi();
-
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddCors(options =>
+    {
+     options.AddPolicy("FrontEndPolicy", policy =>
+     {
+        policy.WithOrigins("http://localhost:3000") // front end dev port
+        .AllowAnyHeader() //Allows authorization, Content-Type, etc
+        .AllowAnyMethod(); //Allows GET,POST,DELETE etc.. 
+     }); 
+    });
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
 
+//Configure Middleware
 app.UseSerilogRequestLogging();
-
+app.UseCors("FrontEndPolicy");
+app.UseExceptionHandler();
 app.UseStatusCodePages();
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
-
 app.MapControllers();
-
 app.Run();
