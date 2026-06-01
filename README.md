@@ -228,6 +228,34 @@ This is the correct approach because DELETE is an operation on a specific resour
 
 Returning `204 No Content` in this case would incorrectly suggest that the deletion succeeded, which could mislead the client and hide inconsistencies in the system. A `404` ensures proper feedback and aligns with RESTful API semantics.
 
+# API Architecture & Security Notes
+
+## Controller Thinning
+
+Throwing `JobNotFoundException` instead of returning `NotFound()` directly keeps the controller out of the decision-making business. The controller just calls the service and passes the result along — a separate middleware translates exceptions into HTTP responses. One place to update if the format changes, and the service is testable without an HTTP context.
+
+## Structured Logging
+
+`Console.WriteLine` writes flat strings. Serilog writes JSON, so every field (user ID, job ID, duration) is queryable in tools like Datadog or Kibana. Instead of grep-ing through text, you filter by field. Easier alerting, easier debugging.
+
+---
+
+## Stateless Auth
+
+Session-based auth stores your login state on the server. JWT-based auth puts it in a signed token the client holds. With sessions, all your servers need to share that state — tricky when scaling horizontally. With JWTs, any server can validate any token on its own, so scaling is seamless.
+
+## 401 vs 403
+
+- **401** — "Who are you?" Fired by authentication middleware when no valid token is present.
+- **403** — "I know who you are, but no." Fired by authorisation middleware when the token is valid but the user lacks the required role or permission.
+
+## JWT Storage
+
+`localStorage` is readable by any JavaScript on the page, so an XSS attack can steal the token. Safer options:
+
+- **`HttpOnly` cookie** — the browser never exposes it to JS at all.
+- **In-memory** — store in a JS variable; lost on refresh but never persisted anywhere accessible.
+
 ## Author
 
 **Lereko Seholoba**
