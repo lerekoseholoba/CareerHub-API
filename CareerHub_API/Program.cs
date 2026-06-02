@@ -23,7 +23,7 @@ builder.Services.AddControllers()
             new JsonStringEnumConverter());
     });
 //Register Services
-builder.Services.AddSingleton<JobService>();
+builder.Services.AddScoped<JobService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
