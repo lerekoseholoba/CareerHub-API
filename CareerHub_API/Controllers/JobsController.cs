@@ -16,7 +16,6 @@ public class JobsController : ControllerBase
         _jobService = jobService;
     }
 
-    // PUBLIC: Get all jobs
     [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetAllJobs()
@@ -25,7 +24,6 @@ public class JobsController : ControllerBase
         return Ok(jobs);
     }
 
-    // PUBLIC: Get job by id
     [AllowAnonymous]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetJobById(Guid id)
@@ -34,7 +32,6 @@ public class JobsController : ControllerBase
         return Ok(job);
     }
 
-    // PROTECTED: Create job (Employer only)
     [Authorize(Roles = "Employer")]
     [HttpPost]
     public async Task<IActionResult> CreateJob(CreateJobRequest request)
@@ -48,16 +45,14 @@ public class JobsController : ControllerBase
         );
     }
 
-    // PROTECTED: Update job (Employer only)
     [Authorize(Roles = "Employer")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateJob(Guid id, UpdateJobRequest request)
     {
-        var updatedJob = await _jobService.UpdateJobAsync(id, request);
-        return Ok(updatedJob);
+        var job = await _jobService.UpdateJobAsync(id, request);
+        return Ok(job);
     }
 
-    // PROTECTED: Delete job (Employer only)
     [Authorize(Roles = "Employer")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteJob(Guid id)
