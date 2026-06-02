@@ -1,106 +1,88 @@
 using CareerHub_API.DTOs;
 using CareerHub_API.Models;
 using CareerHub_API.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 namespace CareerHub_API.Data;
+
 public class JobService
 {
-    private static readonly List<JobListing> _jobs = new()
-    {
-        new JobListing
-        {
-            Id = 1,
-            Title = "Backend Developer",
-            Company = "TechCorp",
-            Location = "Cape Town",
-            Type = JobType.FullTime,
-            Description = "Build APIs using .NET technologies.",
-            SalaryMin = 25000,
-            SalaryMax = 40000,
-            PostedAt = DateTime.UtcNow,
-            IsActive = true
-        }
-    };
+    private readonly CareerHubDbContext _context;
 
-    public Task<List<JobResponse>> GetAllJobsAsync()
+    public JobService(CareerHubDbContext context)
     {
-        return Task.FromResult(_jobs.Select(MapToResponse).ToList());
+        _context = context;
     }
 
-    public Task<JobResponse?> GetJobByIdAsync(int id)
+    public async Task<List<JobResponse>> GetAllJobsAsync()
     {
-        var job = _jobs.FirstOrDefault(j => j.Id == id);
+        var jobs = await _context.JobListings.ToListAsync();
+        return jobs.Select(MapToResponse).ToList();
+    }
+
+    public async Task<JobResponse?> GetJobByIdAsync(Guid id)
+    {
+        var job = await _context.JobListings.FindAsync(id);
 
         if (job == null)
-        {
-           throw new JobNotFoundException(id);
-        }
-        return Task.FromResult<JobResponse?>(MapToResponse(job));
+            throw new JobNotFoundException(id);
+
+        return MapToResponse(job);
     }
 
-    public Task<JobResponse?> CreateJobAsync(CreateJobRequest request)
+    public async Task<JobResponse?> CreateJobAsync(CreateJobRequest request)
     {
-        var duplicate = _jobs.Any(j =>
-            j.Title.Equals(request.Title, StringComparison.OrdinalIgnoreCase)
-            && j.Company.Equals(request.Company, StringComparison.OrdinalIgnoreCase));
+        var duplicate = await _context.JobListings.AnyAsync(j =>
+            j.Title.ToLower() == request.Title.ToLower() &&
+            j.Company.ToLower() == request.Company.ToLower());
 
         if (duplicate)
         {
-          throw new DuplicateJobListingException(
-          request.Title,
-          request.Company);
+            throw new DuplicateJobListingException(request.Title, request.Company);
         }
 
         var job = new JobListing
         {
-            Id = _jobs.Max(j => j.Id) + 1,
+            Id = Guid.NewGuid(),
             Title = request.Title,
             Company = request.Company,
             Location = request.Location,
             Description = request.Description,
-            Type = request.Type,
-            SalaryMin = request.SalaryMin,
-            SalaryMax = request.SalaryMax,
-            PostedAt = DateTime.UtcNow,
-            IsActive = true
+            PostedDate = DateTime.UtcNow
         };
 
-        _jobs.Add(job);
+        _context.JobListings.Add(job);
+        await _context.SaveChangesAsync();
 
-        return Task.FromResult<JobResponse?>(MapToResponse(job));
+        return MapToResponse(job);
     }
 
-    public Task<JobResponse?> UpdateJobAsync(int id, UpdateJobRequest request)
+    public async Task<JobResponse?> UpdateJobAsync(Guid id, UpdateJobRequest request)
     {
-        var job = _jobs.FirstOrDefault(j => j.Id == id);
+        var job = await _context.JobListings.FindAsync(id);
 
-       if (job == null)
-       {
-        throw new JobNotFoundException(id);
-       }
+        if (job == null)
+            throw new JobNotFoundException(id);
+
         job.Title = request.Title;
         job.Company = request.Company;
         job.Location = request.Location;
         job.Description = request.Description;
-        job.Type = request.Type;
-        job.SalaryMin = request.SalaryMin;
-        job.SalaryMax = request.SalaryMax;
 
-        return Task.FromResult<JobResponse?>(MapToResponse(job));
+        await _context.SaveChangesAsync();
+
+        return MapToResponse(job);
     }
 
-    public Task DeleteJobAsync(int id)
+    public async Task DeleteJobAsync(Guid id)
     {
-        var job = _jobs.FirstOrDefault(j => j.Id == id);
+        var job = await _context.JobListings.FindAsync(id);
 
         if (job == null)
-        {
-         throw new JobNotFoundException(id);
-        }
+            throw new JobNotFoundException(id);
 
-        _jobs.Remove(job);
-
-        return Task.FromResult(true);
+        _context.JobListings.Remove(job);
+        await _context.SaveChangesAsync();
     }
 
     private static JobResponse MapToResponse(JobListing job)
@@ -112,27 +94,7 @@ public class JobService
             Company = job.Company,
             Location = job.Location,
             Description = job.Description,
-            Type = job.Type,
-            SalaryMin = job.SalaryMin,
-            SalaryMax = job.SalaryMax,
-            PostedAt = job.PostedAt,
-            IsActive = job.IsActive,
-            SalaryDisplay = GetSalaryDisplay(job)
+            PostedAt = job.PostedDate
         };
-    }
-
-    private static string GetSalaryDisplay(JobListing job)
-    {
-        if (job.SalaryMin.HasValue && job.SalaryMax.HasValue)
-        {
-            return $"R{job.SalaryMin:N0} – R{job.SalaryMax:N0}/month";
-        }
-
-        if (job.SalaryMin.HasValue)
-        {
-            return $"From R{job.SalaryMin:N0}/month";
-        }
-
-        return "Salary not specified";
     }
 }

@@ -83,9 +83,4 @@ public class AuthController : ControllerBase
             Role = role
         });
     }
-    [HttpGet("ping")]
-public IActionResult Ping()
-{
-    return Ok("auth alive");
-}
 }

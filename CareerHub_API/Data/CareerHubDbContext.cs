@@ -1,3 +1,7 @@
+using Microsoft.EntityFrameworkCore;
+using CareerHub_API.Models; 
+
+namespace CareerHub_API.Data;
 public class CareerHubDbContext : DbContext
 {
     public CareerHubDbContext(DbContextOptions<CareerHubDbContext> options)
