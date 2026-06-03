@@ -22,10 +22,11 @@ public class JobService
             {
                 Id = j.Id,
                 Title = j.Title,
+                Description = j.Description,
                 Company = j.Company.Name,
                 Location = j.Location,
-                Description = j.Description,
-                PostedAt = j.PostedDate
+                PostedAt = j.PostedDate,
+                ApplicationCount = j.Applications.Count()
             })
             .ToListAsync();
     }
@@ -39,10 +40,11 @@ public class JobService
             {
                 Id = j.Id,
                 Title = j.Title,
+                Description = j.Description,
                 Company = j.Company.Name,
                 Location = j.Location,
-                Description = j.Description,
-                PostedAt = j.PostedDate
+                PostedAt = j.PostedDate,
+                ApplicationCount = j.Applications.Count()
             })
             .FirstOrDefaultAsync();
 
@@ -81,10 +83,11 @@ public class JobService
         {
             Id = job.Id,
             Title = job.Title,
+            Description = job.Description,
             Company = job.Company.Name,
             Location = job.Location,
-            Description = job.Description,
-            PostedAt = job.PostedDate
+            PostedAt = job.PostedDate,
+            ApplicationCount = 0
         };
     }
 
@@ -108,10 +111,11 @@ public class JobService
         {
             Id = job.Id,
             Title = job.Title,
+            Description = job.Description,
             Company = job.Company.Name,
             Location = job.Location,
-            Description = job.Description,
-            PostedAt = job.PostedDate
+            PostedAt = job.PostedDate,
+            ApplicationCount = job.Applications?.Count ?? 0
         };
     }
 
