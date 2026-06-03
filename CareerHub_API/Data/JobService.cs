@@ -16,36 +16,61 @@ public class JobService
 
     public async Task<List<JobResponse>> GetAllJobsAsync()
     {
-        var jobs = await _context.JobListings.ToListAsync();
-        return jobs.Select(MapToResponse).ToList();
+        return await _context.JobListings
+            .AsNoTracking()
+            .Select(j => new JobResponse
+            {
+                Id = j.Id,
+                Title = j.Title,
+                Description = j.Description,
+                Company = j.Company.Name,
+                Location = j.Location,
+                PostedAt = j.PostedDate,
+                ApplicationCount = j.Applications.Count()
+            })
+            .ToListAsync();
     }
 
-    public async Task<JobResponse?> GetJobByIdAsync(Guid id)
+    public async Task<JobResponse> GetJobByIdAsync(Guid id)
     {
-        var job = await _context.JobListings.FindAsync(id);
+        var job = await _context.JobListings
+            .AsNoTracking()
+            .Where(j => j.Id == id)
+            .Select(j => new JobResponse
+            {
+                Id = j.Id,
+                Title = j.Title,
+                Description = j.Description,
+                Company = j.Company.Name,
+                Location = j.Location,
+                PostedAt = j.PostedDate,
+                ApplicationCount = j.Applications.Count()
+            })
+            .FirstOrDefaultAsync();
 
         if (job == null)
             throw new JobNotFoundException(id);
 
-        return MapToResponse(job);
+        return job;
     }
 
-    public async Task<JobResponse?> CreateJobAsync(CreateJobRequest request)
+    public async Task<JobResponse> CreateJobAsync(CreateJobRequest request)
     {
         var duplicate = await _context.JobListings.AnyAsync(j =>
             j.Title.ToLower() == request.Title.ToLower() &&
-            j.Company.ToLower() == request.Company.ToLower());
+            j.Company.Name.ToLower() == request.Company.ToLower());
 
         if (duplicate)
-        {
             throw new DuplicateJobListingException(request.Title, request.Company);
-        }
 
         var job = new JobListing
         {
             Id = Guid.NewGuid(),
             Title = request.Title,
-            Company = request.Company,
+            Company = new Company
+            {
+                Name = request.Company
+            },
             Location = request.Location,
             Description = request.Description,
             PostedDate = DateTime.UtcNow
@@ -54,24 +79,44 @@ public class JobService
         _context.JobListings.Add(job);
         await _context.SaveChangesAsync();
 
-        return MapToResponse(job);
+        return new JobResponse
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Company = job.Company.Name,
+            Location = job.Location,
+            PostedAt = job.PostedDate,
+            ApplicationCount = 0
+        };
     }
 
-    public async Task<JobResponse?> UpdateJobAsync(Guid id, UpdateJobRequest request)
+    public async Task<JobResponse> UpdateJobAsync(Guid id, UpdateJobRequest request)
     {
-        var job = await _context.JobListings.FindAsync(id);
+        var job = await _context.JobListings
+            .Include(j => j.Company)
+            .FirstOrDefaultAsync(j => j.Id == id);
 
         if (job == null)
             throw new JobNotFoundException(id);
 
         job.Title = request.Title;
-        job.Company = request.Company;
+        job.Company.Name = request.Company;
         job.Location = request.Location;
         job.Description = request.Description;
 
         await _context.SaveChangesAsync();
 
-        return MapToResponse(job);
+        return new JobResponse
+        {
+            Id = job.Id,
+            Title = job.Title,
+            Description = job.Description,
+            Company = job.Company.Name,
+            Location = job.Location,
+            PostedAt = job.PostedDate,
+            ApplicationCount = job.Applications?.Count ?? 0
+        };
     }
 
     public async Task DeleteJobAsync(Guid id)
@@ -83,18 +128,5 @@ public class JobService
 
         _context.JobListings.Remove(job);
         await _context.SaveChangesAsync();
-    }
-
-    private static JobResponse MapToResponse(JobListing job)
-    {
-        return new JobResponse
-        {
-            Id = job.Id,
-            Title = job.Title,
-            Company = job.Company,
-            Location = job.Location,
-            Description = job.Description,
-            PostedAt = job.PostedDate
-        };
     }
 }

@@ -283,7 +283,118 @@ The connection string is placed in `appsettings.Development.json` during develop
 In production, a safer approach is to avoid storing connection strings directly in configuration files altogether. Instead, they should be provided through secure environment variables, secret managers (such as Azure Key Vault or AWS Secrets Manager), or deployment pipeline configuration settings. This reduces the risk of credential leakage and allows credentials to be rotated without changing application code.
 
 Separating development and production configuration also ensures that sensitive production databases are not accidentally accessed using development settings.
+# Assignment 2.2 – Relationship Design Decisions
 
+## 1. One-to-many vs relationships requiring a join entity
+
+The following relationships are one-to-many:
+
+- A Company can have many JobListings
+- A JobListing belongs to one Company
+- An Applicant can have many Applications
+- A JobListing can have many Applications
+
+The relationship between Applicant and JobListing is **not directly implemented as many-to-many**. Instead, it is modeled through a separate entity called **Application**, which acts as a join entity.
+
+This results in the following structure:
+
+- Company (1) → (many) JobListings  
+- Applicant (1) → (many) Applications  
+- JobListing (1) → (many) Applications  
+
+Therefore, the only relationship requiring a join entity is:
+- Applicant ↔ JobListing (via Application)
+
+---
+
+## 2. Why the Application relationship cannot be a hidden join table
+
+A hidden join table (EF Core many-to-many without an explicit entity) is not suitable because the relationship contains additional domain data.
+
+The Application entity includes extra attributes:
+
+- SubmittedAt (the time the application was made)
+- Status (current state of the application in the hiring process)
+
+A hidden join table can only store foreign keys and cannot represent additional business data.
+
+Because Application has its own properties and lifecycle, it must be modeled as a **first-class entity** rather than an implicit relationship table. This allows the system to track and update the state of an application over time.
+
+---
+
+## 3. Delete behaviour for Company → JobListing relationship
+
+A Company should NOT be allowed to be deleted if it still has associated JobListings.
+
+The recommended delete behaviour is:
+
+- Restrict delete (DeleteBehavior.Restrict)
+
+### Justification
+
+Companies are core domain entities, and job listings depend on them for referential integrity. Allowing cascade deletion would risk accidentally removing all job listings associated with a company, which could result in significant data loss.
+
+By restricting deletion, the database enforces that a company cannot be removed while job listings still exist. This ensures historical data integrity and prevents accidental cascading deletes in production environments.
+
+If a company must be removed, its job listings should first be reassigned or explicitly deleted through controlled business logic.
+## N+1 Query Analysis
+
+No N+1 query problem was observed during testing. The GET /jobs endpoint generated a single SQL query using an INNER JOIN between JobListing and Company, indicating that related data was loaded efficiently in one database round-trip. This confirms that the query is already optimised using either eager loading or projection.
+
+## Read vs Write Queries (Change Tracking vs No Tracking)
+
+In Entity Framework Core, read and write operations behave differently depending on whether change tracking is enabled.
+
+### GET endpoint with change tracking (default behaviour)
+
+When a query uses change tracking (i.e. without `AsNoTracking()`), EF Core:
+
+- Tracks all returned entities in its `ChangeTracker`
+- Stores original values and current values
+- Monitors any modifications made to the entity
+- Automatically detects changes when `SaveChanges()` is called
+
+This is useful for **write operations**, but inefficient for read-only queries because it adds unnecessary memory and CPU overhead.
+
+---
+
+### GET endpoint without change tracking (`AsNoTracking()`)
+
+When `AsNoTracking()` is used:
+
+- EF Core does **not track returned entities**
+- Entities are treated as read-only snapshots
+- No memory is used for tracking state changes
+- Queries are faster and more efficient
+
+This is ideal for **GET endpoints**, especially list and detail views, because no updates are expected.
+
+---
+
+## Key Difference in Behaviour
+
+| Feature | With Tracking | Without Tracking |
+|--------|---------------|------------------|
+| Entity state tracking | Yes | No |
+| Performance | Slower | Faster |
+| Memory usage | Higher | Lower |
+| Suitable for GET | Sometimes | Yes (recommended) |
+| Suitable for UPDATE/POST | Yes | No |
+
+---
+
+## Scenario: Silent Data Loss Bug (Wrong Use of No Tracking on Write)
+
+A serious bug can occur if `AsNoTracking()` is used in a write operation.
+
+### Example scenario:
+
+1. A job listing is retrieved using `AsNoTracking()`:
+   ```csharp
+   var job = await _context.JobListings
+       .AsNoTracking()
+       .FirstOrDefaultAsync(j => j.Id == id);
+       
 ## Author
 
 **Lereko Seholoba**
