@@ -256,6 +256,34 @@ Session-based auth stores your login state on the server. JWT-based auth puts it
 - **`HttpOnly` cookie** — the browser never exposes it to JS at all.
 - **In-memory** — store in a JS variable; lost on refresh but never persisted anywhere accessible.
 
+## Entity Framework Core Concepts
+
+### 1. The Change Tracker
+
+EF Core’s Change Tracker is the internal mechanism that keeps track of all entities retrieved from the database and monitors any modifications made to them during the lifetime of a DbContext. When you query data, EF Core begins tracking those objects. If you change a property (for example, updating a job title or salary), EF Core does not immediately write that change to the database. Instead, it marks the entity as “Modified” in memory.
+
+When `SaveChangesAsync()` is finally called, EF Core inspects all tracked entities, determines what has changed, and generates the appropriate SQL statements in a single unit of work. This is why `SaveChangesAsync()` is typically called once at the end of an operation rather than after every property change. Calling it once improves performance, reduces database round trips, and ensures that all related changes are committed together consistently.
+
+---
+
+### 2. Migrations as Version Control
+
+EF Core migrations act as a version history for your database schema. Each migration file represents a structured set of changes (such as creating tables, adding columns, or altering relationships) that keeps the database in sync with your code model.
+
+These migration files must be committed to source control because they are part of the application’s evolution. If they are not shared, other developers will not have the same schema history. When a teammate pulls code that references a migration they have not applied locally, their application will fail at runtime because the database schema does not match the expected model. This can result in errors like missing tables, missing columns, or invalid relationships.
+
+By committing migrations, the team ensures that everyone can rebuild the same database state consistently by running `Update-Database`.
+
+---
+
+### 3. Connection String Security
+
+The connection string is placed in `appsettings.Development.json` during development because it often contains sensitive information such as server addresses, database credentials, and authentication details. Keeping it in the development-specific configuration ensures it is not accidentally deployed to production or exposed in shared repositories.
+
+In production, a safer approach is to avoid storing connection strings directly in configuration files altogether. Instead, they should be provided through secure environment variables, secret managers (such as Azure Key Vault or AWS Secrets Manager), or deployment pipeline configuration settings. This reduces the risk of credential leakage and allows credentials to be rotated without changing application code.
+
+Separating development and production configuration also ensures that sensitive production databases are not accidentally accessed using development settings.
+
 ## Author
 
 **Lereko Seholoba**
