@@ -283,6 +283,60 @@ The connection string is placed in `appsettings.Development.json` during develop
 In production, a safer approach is to avoid storing connection strings directly in configuration files altogether. Instead, they should be provided through secure environment variables, secret managers (such as Azure Key Vault or AWS Secrets Manager), or deployment pipeline configuration settings. This reduces the risk of credential leakage and allows credentials to be rotated without changing application code.
 
 Separating development and production configuration also ensures that sensitive production databases are not accidentally accessed using development settings.
+# Assignment 2.2 – Relationship Design Decisions
+
+## 1. One-to-many vs relationships requiring a join entity
+
+The following relationships are one-to-many:
+
+- A Company can have many JobListings
+- A JobListing belongs to one Company
+- An Applicant can have many Applications
+- A JobListing can have many Applications
+
+The relationship between Applicant and JobListing is **not directly implemented as many-to-many**. Instead, it is modeled through a separate entity called **Application**, which acts as a join entity.
+
+This results in the following structure:
+
+- Company (1) → (many) JobListings  
+- Applicant (1) → (many) Applications  
+- JobListing (1) → (many) Applications  
+
+Therefore, the only relationship requiring a join entity is:
+- Applicant ↔ JobListing (via Application)
+
+---
+
+## 2. Why the Application relationship cannot be a hidden join table
+
+A hidden join table (EF Core many-to-many without an explicit entity) is not suitable because the relationship contains additional domain data.
+
+The Application entity includes extra attributes:
+
+- SubmittedAt (the time the application was made)
+- Status (current state of the application in the hiring process)
+
+A hidden join table can only store foreign keys and cannot represent additional business data.
+
+Because Application has its own properties and lifecycle, it must be modeled as a **first-class entity** rather than an implicit relationship table. This allows the system to track and update the state of an application over time.
+
+---
+
+## 3. Delete behaviour for Company → JobListing relationship
+
+A Company should NOT be allowed to be deleted if it still has associated JobListings.
+
+The recommended delete behaviour is:
+
+- Restrict delete (DeleteBehavior.Restrict)
+
+### Justification
+
+Companies are core domain entities, and job listings depend on them for referential integrity. Allowing cascade deletion would risk accidentally removing all job listings associated with a company, which could result in significant data loss.
+
+By restricting deletion, the database enforces that a company cannot be removed while job listings still exist. This ensures historical data integrity and prevents accidental cascading deletes in production environments.
+
+If a company must be removed, its job listings should first be reassigned or explicitly deleted through controlled business logic.
 
 ## Author
 
