@@ -56,7 +56,7 @@ public static class SeedData
             Description = "Build APIs with .NET",
             Location = "Remote",
             CompanyId = company1.Id,
-            PostedDate = DateTime.UtcNow
+            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         };
 
         var job2 = new JobListing
@@ -66,7 +66,7 @@ public static class SeedData
             Description = "Analyse financial data",
             Location = "Johannesburg",
             CompanyId = company2.Id,
-            PostedDate = DateTime.UtcNow
+            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         };
 
         var job3 = new JobListing
@@ -76,7 +76,7 @@ public static class SeedData
             Description = "Patient care and support",
             Location = "Cape Town",
             CompanyId = company3.Id,
-            PostedDate = DateTime.UtcNow
+            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         };
 
         var job4 = new JobListing
@@ -86,7 +86,7 @@ public static class SeedData
             Description = "Teach computer science",
             Location = "Pretoria",
             CompanyId = company4.Id,
-            PostedDate = DateTime.UtcNow
+            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         };
 
         var job5 = new JobListing
@@ -96,7 +96,7 @@ public static class SeedData
             Description = "Renewable energy systems",
             Location = "Durban",
             CompanyId = company5.Id,
-            PostedDate = DateTime.UtcNow
+            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
         };
 
         modelBuilder.Entity<JobListing>().HasData(job1, job2, job3, job4, job5);
@@ -131,7 +131,7 @@ public static class SeedData
 
         var applicant5 = new Applicant
         {
-            Id = Guid.Parse("eeeeeeee-5555-5555-5555-555555555555"),
+            Id = Guid.Parse("eeeeeeee-5555-5555-5555-eeeeeeeeeeee"),
             Name = "David Brown",
             Email = "david@example.com"
         };
@@ -143,35 +143,35 @@ public static class SeedData
             {
                 JobListingId = job1.Id,
                 ApplicantId = applicant1.Id,
-                SubmittedAt = DateTime.UtcNow,
+                SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.Submitted
             },
             new Application
             {
                 JobListingId = job2.Id,
                 ApplicantId = applicant2.Id,
-                SubmittedAt = DateTime.UtcNow,
+                SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.UnderReview
             },
             new Application
             {
                 JobListingId = job3.Id,
                 ApplicantId = applicant3.Id,
-                SubmittedAt = DateTime.UtcNow,
+                SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.InterviewScheduled
             },
             new Application
             {
                 JobListingId = job4.Id,
                 ApplicantId = applicant4.Id,
-                SubmittedAt = DateTime.UtcNow,
+                SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.Rejected
             },
             new Application
             {
                 JobListingId = job5.Id,
                 ApplicantId = applicant5.Id,
-                SubmittedAt = DateTime.UtcNow,
+                SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.Accepted
             }
         );
