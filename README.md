@@ -337,7 +337,9 @@ Companies are core domain entities, and job listings depend on them for referent
 By restricting deletion, the database enforces that a company cannot be removed while job listings still exist. This ensures historical data integrity and prevents accidental cascading deletes in production environments.
 
 If a company must be removed, its job listings should first be reassigned or explicitly deleted through controlled business logic.
+## N+1 Query Analysis
 
+No N+1 query problem was observed during testing. The GET /jobs endpoint generated a single SQL query using an INNER JOIN between JobListing and Company, indicating that related data was loaded efficiently in one database round-trip. This confirms that the query is already optimised using either eager loading or projection.
 ## Author
 
 **Lereko Seholoba**
