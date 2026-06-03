@@ -106,5 +106,6 @@ public class CareerHubDbContext : DbContext
                 .HasForeignKey(a => a.ApplicantId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    SeedData.Seed(modelBuilder);
     }
 }
