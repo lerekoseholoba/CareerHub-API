@@ -1,3 +1,5 @@
+namespace CareerHub_API.Models;
+
 public class Application
 {
     public Guid JobListingId { get; set; }
