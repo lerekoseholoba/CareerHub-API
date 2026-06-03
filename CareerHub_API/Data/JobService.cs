@@ -16,13 +16,20 @@ public class JobService
 
     public async Task<List<JobResponse>> GetAllJobsAsync()
     {
-        var jobs = await _context.JobListings.ToListAsync();
+        var jobs = await _context.JobListings
+            .Include(j => j.Company)
+            .AsNoTracking()
+            .ToListAsync();
+
         return jobs.Select(MapToResponse).ToList();
     }
 
-    public async Task<JobResponse?> GetJobByIdAsync(Guid id)
+    public async Task<JobResponse> GetJobByIdAsync(Guid id)
     {
-        var job = await _context.JobListings.FindAsync(id);
+        var job = await _context.JobListings
+            .Include(j => j.Company)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(j => j.Id == id);
 
         if (job == null)
             throw new JobNotFoundException(id);
@@ -30,11 +37,11 @@ public class JobService
         return MapToResponse(job);
     }
 
-    public async Task<JobResponse?> CreateJobAsync(CreateJobRequest request)
+    public async Task<JobResponse> CreateJobAsync(CreateJobRequest request)
     {
         var duplicate = await _context.JobListings.AnyAsync(j =>
             j.Title.ToLower() == request.Title.ToLower() &&
-            j.Company.ToLower() == request.Company.ToLower());
+            j.Company.Name.ToLower() == request.Company.ToLower());
 
         if (duplicate)
         {
@@ -45,7 +52,10 @@ public class JobService
         {
             Id = Guid.NewGuid(),
             Title = request.Title,
-            Company = request.Company,
+            Company = new Company
+            {
+                Name = request.Company
+            },
             Location = request.Location,
             Description = request.Description,
             PostedDate = DateTime.UtcNow
@@ -57,15 +67,17 @@ public class JobService
         return MapToResponse(job);
     }
 
-    public async Task<JobResponse?> UpdateJobAsync(Guid id, UpdateJobRequest request)
+    public async Task<JobResponse> UpdateJobAsync(Guid id, UpdateJobRequest request)
     {
-        var job = await _context.JobListings.FindAsync(id);
+        var job = await _context.JobListings
+            .Include(j => j.Company)
+            .FirstOrDefaultAsync(j => j.Id == id);
 
         if (job == null)
             throw new JobNotFoundException(id);
 
         job.Title = request.Title;
-        job.Company = request.Company;
+        job.Company.Name = request.Company;
         job.Location = request.Location;
         job.Description = request.Description;
 
@@ -91,7 +103,7 @@ public class JobService
         {
             Id = job.Id,
             Title = job.Title,
-            Company = job.Company,
+            Company = job.Company.Name,
             Location = job.Location,
             Description = job.Description,
             PostedAt = job.PostedDate
