@@ -6,6 +6,7 @@ using CareerHub_API.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -22,7 +23,7 @@ builder.Services.AddControllers()
             new JsonStringEnumConverter());
     });
 //Register Services
-builder.Services.AddSingleton<JobService>();
+builder.Services.AddScoped<JobService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -51,6 +52,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 builder.Services.AddAuthorization();
+builder.Services.AddDbContext<CareerHubDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));//Registered the DbContext
 var app = builder.Build();
 
 
