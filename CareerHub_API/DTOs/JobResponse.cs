@@ -15,4 +15,6 @@ public class JobResponse
     public string Location { get; set; } = string.Empty;
 
     public DateTime PostedAt { get; set; }
+
+    public int ApplicationCount { get; set; }
 }
