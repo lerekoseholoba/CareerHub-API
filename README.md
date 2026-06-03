@@ -340,6 +340,61 @@ If a company must be removed, its job listings should first be reassigned or exp
 ## N+1 Query Analysis
 
 No N+1 query problem was observed during testing. The GET /jobs endpoint generated a single SQL query using an INNER JOIN between JobListing and Company, indicating that related data was loaded efficiently in one database round-trip. This confirms that the query is already optimised using either eager loading or projection.
+
+## Read vs Write Queries (Change Tracking vs No Tracking)
+
+In Entity Framework Core, read and write operations behave differently depending on whether change tracking is enabled.
+
+### GET endpoint with change tracking (default behaviour)
+
+When a query uses change tracking (i.e. without `AsNoTracking()`), EF Core:
+
+- Tracks all returned entities in its `ChangeTracker`
+- Stores original values and current values
+- Monitors any modifications made to the entity
+- Automatically detects changes when `SaveChanges()` is called
+
+This is useful for **write operations**, but inefficient for read-only queries because it adds unnecessary memory and CPU overhead.
+
+---
+
+### GET endpoint without change tracking (`AsNoTracking()`)
+
+When `AsNoTracking()` is used:
+
+- EF Core does **not track returned entities**
+- Entities are treated as read-only snapshots
+- No memory is used for tracking state changes
+- Queries are faster and more efficient
+
+This is ideal for **GET endpoints**, especially list and detail views, because no updates are expected.
+
+---
+
+## Key Difference in Behaviour
+
+| Feature | With Tracking | Without Tracking |
+|--------|---------------|------------------|
+| Entity state tracking | Yes | No |
+| Performance | Slower | Faster |
+| Memory usage | Higher | Lower |
+| Suitable for GET | Sometimes | Yes (recommended) |
+| Suitable for UPDATE/POST | Yes | No |
+
+---
+
+## Scenario: Silent Data Loss Bug (Wrong Use of No Tracking on Write)
+
+A serious bug can occur if `AsNoTracking()` is used in a write operation.
+
+### Example scenario:
+
+1. A job listing is retrieved using `AsNoTracking()`:
+   ```csharp
+   var job = await _context.JobListings
+       .AsNoTracking()
+       .FirstOrDefaultAsync(j => j.Id == id);
+       
 ## Author
 
 **Lereko Seholoba**
