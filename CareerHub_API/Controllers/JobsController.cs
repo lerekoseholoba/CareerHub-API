@@ -1,7 +1,7 @@
 using CareerHub_API.DTOs;
-using CareerHub_API.Data;
-using Microsoft.AspNetCore.Mvc;
+using CareerHub_API.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace CareerHub_API.Controllers;
 
@@ -9,34 +9,34 @@ namespace CareerHub_API.Controllers;
 [Route("jobs")]
 public class JobsController : ControllerBase
 {
-    private readonly JobService _jobService;
+    private readonly IJobListingService _jobListingService;
 
-    public JobsController(JobService jobService)
+    public JobsController(IJobListingService jobListingService)
     {
-        _jobService = jobService;
+        _jobListingService = jobListingService;
     }
 
     [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetAllJobs()
     {
-        var jobs = await _jobService.GetAllJobsAsync();
+        var jobs = await _jobListingService.GetAllAsync();
         return Ok(jobs);
     }
 
     [AllowAnonymous]
-    [HttpGet("{id}")]
+    [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetJobById(Guid id)
     {
-        var job = await _jobService.GetJobByIdAsync(id);
+        var job = await _jobListingService.GetByIdAsync(id);
         return Ok(job);
     }
 
     [Authorize(Roles = "Employer")]
     [HttpPost]
-    public async Task<IActionResult> CreateJob(CreateJobRequest request)
+    public async Task<IActionResult> CreateJob([FromBody] CreateJobRequest request)
     {
-        var job = await _jobService.CreateJobAsync(request);
+        var job = await _jobListingService.CreateAsync(request);
 
         return CreatedAtAction(
             nameof(GetJobById),
@@ -46,18 +46,18 @@ public class JobsController : ControllerBase
     }
 
     [Authorize(Roles = "Employer")]
-    [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateJob(Guid id, UpdateJobRequest request)
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> UpdateJob(Guid id, [FromBody] UpdateJobRequest request)
     {
-        var job = await _jobService.UpdateJobAsync(id, request);
+        var job = await _jobListingService.UpdateAsync(id, request);
         return Ok(job);
     }
 
     [Authorize(Roles = "Employer")]
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteJob(Guid id)
     {
-        await _jobService.DeleteJobAsync(id);
+        await _jobListingService.CloseAsync(id);
         return NoContent();
     }
 }

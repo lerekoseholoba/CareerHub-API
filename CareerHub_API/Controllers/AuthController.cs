@@ -1,86 +1,50 @@
 using CareerHub_API.DTOs;
-using CareerHub_API.Models;
-using CareerHub_API.Exceptions;
-using Microsoft.AspNetCore.Authorization;
+using CareerHub_API.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
-namespace CareerHub_API.Controllers;
-
-[ApiController]
-[Route("api/auth")]
-public class AuthController : ControllerBase
+namespace CareerHub_API.Controllers
 {
-    private readonly IConfiguration _configuration;
-
-    public AuthController(IConfiguration configuration)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class AuthController : ControllerBase
     {
-        _configuration = configuration;
-    }
+        private readonly IAuthService _authService;
 
-    [HttpPost("login")]
-    public IActionResult Login(LoginRequest request)
-    {
-        if (request.Username != "employer" ||
-            request.Password != "password123")
+        public AuthController(IAuthService authService)
         {
-            return Unauthorized();
+            _authService = authService;
         }
 
-        var claims = new[]
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            new Claim(JwtRegisteredClaimNames.Sub,
-                request.Username),
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            new Claim(ClaimTypes.Role,
-                "Employer")
-        };
+            var result = await _authService.RegisterAsync(request);
 
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(
-                _configuration["Jwt:Key"]!
-            )
-        );
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
 
-        var credentials = new SigningCredentials(
-            key,
-            SecurityAlgorithms.HmacSha256
-        );
+            return Ok(new { message = result.Message });
+        }
 
-        var token = new JwtSecurityToken(
-            claims: claims,
-            expires: DateTime.UtcNow.AddHours(2),
-            signingCredentials: credentials
-        );
-
-        var tokenString =
-            new JwtSecurityTokenHandler()
-                .WriteToken(token);
-
-        return Ok(new LoginResponse(tokenString));
-    }
-
-    [Authorize]
-    [HttpGet("me")]
-    public IActionResult Me()
-    {
-        var username =
-            User.FindFirstValue(
-                JwtRegisteredClaimNames.Sub
-            );
-
-        var role =
-            User.FindFirstValue(
-                ClaimTypes.Role
-            );
-
-        return Ok(new
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            Username = username,
-            Role = role
-        });
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _authService.LoginAsync(request);
+
+            if (!result.Success)
+                return Unauthorized(new { message = result.Message });
+
+            return Ok(new
+            {
+                token = result.Token,
+                message = result.Message
+            });
+        }
     }
 }
