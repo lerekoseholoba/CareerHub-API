@@ -394,7 +394,146 @@ A serious bug can occur if `AsNoTracking()` is used in a write operation.
    var job = await _context.JobListings
        .AsNoTracking()
        .FirstOrDefaultAsync(j => j.Id == id);
-       
+
+# Assignment 2.3- Repository Pattern, DI and Architecture
+# Part 1 — Architecture Decisions
+
+## 1. Boundary Decisions
+
+**Approach:** One repository per entity:
+- `IJobListingRepository` → manages only `JobListing` persistence
+- `ICompanyRepository` → manages only `Company` persistence
+- `IApplicationRepository` → manages only `Application` persistence
+
+**Justification:**  
+Each repository has a **single responsibility** and only knows about its own table(s) and queries. When `ApplicationService` needs to **validate that a JobListing exists** before creating an Application, it calls the **JobListingRepository**, not the ApplicationRepository. This ensures:
+
+- **Separation of concerns** — no repository owns another entity’s data  
+- **Testability** — repositories can be mocked independently  
+- **Maintainability** — changes to one repository do not affect unrelated entities  
+
+**Consequence of wrong choice:**  
+Merging multiple entities into one repository:
+- Violates the Single Responsibility Principle  
+- Increases coupling between unrelated tables  
+- Makes testing and refactoring harder  
+- Introduces potential for accidental side effects when queries change
+
+---
+
+## 2. Return Types
+
+**Decision:** Repository methods **do not return `IQueryable<T>`**; they return evaluated collections or entities (e.g., `Task<List<T>>` or `Task<T?>`).  
+
+**Justification:**  
+Returning `IQueryable<T>` breaks the repository abstraction because it exposes **how data is retrieved**, specifically EF Core query mechanics. The service layer is then forced to:
+
+- Compose LINQ-to-Entities queries
+- Reference EF Core (`using Microsoft.EntityFrameworkCore;`)
+- Understand deferred execution and SQL translation
+
+**Consequence of wrong choice:**  
+- Tightly couples the service layer to EF Core  
+- Makes the application harder to refactor if the ORM changes  
+- Splits query logic between repository, service, and database engine  
+- Violates the principle of abstraction and separation of concerns
+
+---
+
+## 3. Lifetime Choices
+
+| Component                        | Lifetime Choice | Justification / Consequence of wrong choice |
+|---------------------------------|----------------|-------------------------------------------|
+| **CareerHubDbContext**            | Scoped         | Must be per-request. Singleton → data leakage, concurrency issues. Transient → inefficient, multiple DB connections per request. |
+| **JobListingService**             | Scoped         | Depends on Scoped repositories/DbContext. Singleton → lifetime mismatch. Transient → unnecessary instances, minor inefficiency. |
+| **ApplicationRepository**         | Scoped         | Depends on DbContext. Singleton → lifetime mismatch. Transient → creates unnecessary instances per injection. |
+| **ApplicationStatusCache**        | Singleton      | Holds in-memory rules for all requests. Scoped/Transient → redundant memory, multiple copies, risk of inconsistency. |
+
+---
+
+## 4. Status Transitions
+
+**Decision:** Validation of Application status transitions is **owned by the Application domain entity**.  
+
+**Justification:**  
+- Status transitions are **business invariants of the entity itself**, independent of HTTP requests or database implementation.  
+- Enforcing transitions in the **controller** would:  
+  - Scatter business rules across entry points  
+  - Make rules non-reusable in background jobs or other services  
+- Enforcing transitions in the **repository** would:  
+  - Tie business logic to data access  
+  - Break testability and separation of concerns  
+
+**Consequence of wrong choice:**  
+- Controller: duplicated logic, poor reusability  
+- Repository: persistence layer knows too much, hard to refactor  
+- Domain entity: ensures a **single source of truth** for valid transitions, encapsulated in one place
+# Part 2 — Refactor and Design Documentation
+
+## 1. What the Controller Lost
+
+During the refactor, the following pieces of logic were removed from the controllers:
+
+| Logic | New Layer | Reason for Move |
+|-------|-----------|----------------|
+| Validation that a JobListing exists before creating an Application | **ApplicationService** | This is business logic, not HTTP handling. The service orchestrates multiple repositories, so it is the correct place to enforce cross-entity rules. |
+| Duplicate application check (`ApplicantAlreadyAppliedAsync`) | **ApplicationService** | Preventing a user from applying twice is a domain/business rule. Placing it in the service ensures a single source of truth and avoids duplicating logic in multiple controllers. |
+| Status transition enforcement | **Application Domain Entity** | Transitions are part of the entity’s invariant. Encapsulating them in the domain ensures the rules are always enforced, regardless of which service or entry point updates the Application. |
+| Construction of domain entities (`new Application { ... }`) | **Service Layer** | Controllers should handle HTTP concerns only. Creating and initializing domain objects belongs in the service, where business rules can be applied consistently. |
+| Withdraw logic and authorization check | **ApplicationService** | Ensures only the applicant can withdraw. Authorization and state change are part of business logic, not controller responsibilities. |
+
+---
+
+## 2. Status Transition Design
+
+**Mechanism Chosen:**  
+- Encoded valid transitions as a **dictionary or map** in the `ApplicationStatusRules` class, e.g.:
+
+```csharp
+private static readonly Dictionary<ApplicationStatus, List<ApplicationStatus>> ValidTransitions = new()
+{
+    { ApplicationStatus.Submitted, new List<ApplicationStatus> { ApplicationStatus.UnderReview } },
+    { ApplicationStatus.UnderReview, new List<ApplicationStatus> { ApplicationStatus.Shortlisted, ApplicationStatus.Rejected } },
+    { ApplicationStatus.Shortlisted, new List<ApplicationStatus> { ApplicationStatus.Offered, ApplicationStatus.Rejected } }
+};
+
+## 3. Valid Transition Check
+
+`Application` calls a single method to check `IsValidTransition(current, next)` before changing status.
+
+### Why Adding a New Transition is Easy
+
+To allow, for example, `Offered → Accepted`, you only modify one line in the dictionary:
+
+```csharp
+{ ApplicationStatus.Offered, new List<ApplicationStatus> { ApplicationStatus.Accepted } }
+```
+
+No other `switch` statements or scattered `if/else` checks exist elsewhere.
+
+---
+
+## Lifetime Misconfiguration
+
+### Error Message Observed
+
+```
+InvalidOperationException: Cannot consume scoped service 'CareerHub_API.Data.CareerHubDbContext'
+from singleton 'CareerHub_API.Services.JobListingService'.
+```
+
+### Explanation
+
+- A **Singleton** is created once for the entire application lifetime.
+- A **Scoped** service (like `DbContext`) is created per HTTP request.
+- Allowing a Singleton to hold a Scoped dependency would mean the Singleton could reference a `DbContext` from one request in all future requests, leading to:
+  - Data leakage between users
+  - Concurrency issues and threading problems
+  - Unpredictable exceptions when the context is disposed at the end of a request
+
+### Why the Container Blocks It
+
+The DI container enforces lifetime rules at build-time to prevent these runtime issues and ensure that Scoped dependencies are never captured by longer-lived Singletons.
 ## Author
 
 **Lereko Seholoba**
