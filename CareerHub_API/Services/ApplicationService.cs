@@ -26,7 +26,7 @@ namespace CareerHub_API.Services
             // Rule: cannot apply twice
             if (await _appRepo.ApplicantAlreadyAppliedAsync(request.ApplicantId, request.JobListingId))
                 throw new DuplicateApplicationException();
-
+                
             var application = new Application
             {
                 ApplicantId = request.ApplicantId,

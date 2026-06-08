@@ -77,8 +77,9 @@ builder.Services.AddAuthorization();
 // ----------------------
 // DbContext
 // ----------------------
-builder.Services.AddDbContext<CareerHubDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
+       .EnableSensitiveDataLogging()
+       .LogTo(Console.WriteLine, LogLevel.Information);
 
 // ----------------------
 // Build App
