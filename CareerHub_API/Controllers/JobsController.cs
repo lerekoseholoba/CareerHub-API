@@ -3,6 +3,7 @@ using CareerHub_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Asp.Versioning;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CareerHub_API.Controllers;
 
@@ -85,6 +86,38 @@ public class JobsController : ControllerBase
         return Ok(result);
     }
     [AllowAnonymous]
+[EnableRateLimiting("search")]
+[HttpGet("search")]
+public async Task<IActionResult> SearchJobs(
+    [FromQuery] string? location,
+    [FromQuery] string? employmentType,
+    [FromQuery] decimal? salaryMin,
+    [FromQuery] decimal? salaryMax,
+    [FromQuery] Guid? companyId,
+    [FromQuery] string sort = "postedAt",
+    [FromQuery] string? dir = null,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20)
+{
+    var filter = new JobListingFilterQuery
+    {
+        Location = location,
+        EmploymentType = employmentType,
+        SalaryMin = salaryMin,
+        SalaryMax = salaryMax,
+        CompanyId = companyId,
+        Sort = sort,
+        Dir = dir
+    };
+
+    var result = await _jobListingService.GetAllAsync(
+        filter,
+        page,
+        pageSize);
+
+    return Ok(result);
+}
+    [AllowAnonymous]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetJobById(Guid id)
     {
@@ -93,6 +126,7 @@ public class JobsController : ControllerBase
     }
 
     [Authorize(Roles = "Employer")]
+    [EnableRateLimiting("post-listing")]
     [HttpPost]
     public async Task<IActionResult> CreateJob([FromBody] CreateJobRequest request)
     {

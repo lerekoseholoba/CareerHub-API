@@ -3,6 +3,7 @@ using CareerHub_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Asp.Versioning;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace CareerHub_API.Controllers
 {
@@ -19,6 +20,7 @@ namespace CareerHub_API.Controllers
             _applicationService = applicationService;
         }
 
+        [EnableRateLimiting("apply")]
         [HttpPost]
         public async Task<IActionResult> ApplyToJob([FromBody] CreateApplicationRequest request)
         {
