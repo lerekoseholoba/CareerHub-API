@@ -2,11 +2,13 @@ using CareerHub_API.DTOs;
 using CareerHub_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 
 namespace CareerHub_API.Controllers;
 
 [ApiController]
-[Route("jobs")]
+[ApiVersion(1)]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class JobsController : ControllerBase
 {
     private readonly IJobListingService _jobListingService;

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Asp.Versioning;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -23,6 +24,20 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+//Api versioning
+builder.Services
+    .AddApiVersioning(options =>
+    {
+        options.DefaultApiVersion = new ApiVersion(1, 0);
+        options.AssumeDefaultVersionWhenUnspecified = true;
+        options.ReportApiVersions = true;
+    })
+    .AddMvc()
+    .AddApiExplorer(options =>
+    {
+        options.GroupNameFormat = "'v'VVV";
+        options.SubstituteApiVersionInUrl = true;
     });
 
 // ----------------------
@@ -100,7 +115,7 @@ var app = builder.Build();
 // Middleware Pipeline
 // ----------------------
 app.UseSerilogRequestLogging();
-app.UseCors("FrontEndPolicy");
+app.UseCors("FrontEnd");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseExceptionHandler();
