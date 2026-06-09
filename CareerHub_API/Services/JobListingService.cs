@@ -15,6 +15,7 @@ namespace CareerHub_API.Services
             _jobRepo = jobRepo;
             _companyRepo = companyRepo;
         }
+        /*
         public async Task<PagedResponse<JobResponse>>
                                       GetAllAsync(
                                       int page,
@@ -25,6 +26,18 @@ namespace CareerHub_API.Services
               page,
               pageSize);
         }
+        */
+        public async Task<PagedResponse<JobResponse>>GetAllAsync(
+                                     JobListingFilterQuery query,
+                                                        int page,
+                                                    int pageSize)
+       {
+            return await _jobRepo
+            .GetActiveListingsPagedAsync(
+            query,
+            page,
+            pageSize);
+       }
         public async Task<JobResponse> GetByIdAsync(Guid id)
         {
             var job = await _jobRepo.GetListingDetailsAsync(id);

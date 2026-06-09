@@ -13,7 +13,7 @@ namespace CareerHub_API.Repositories
         {
             _context = context;
         }
-
+        /*
         public async Task<PagedResponse<JobResponse>>
                      GetActiveListingsPagedAsync(
                      int page,
@@ -49,7 +49,115 @@ namespace CareerHub_API.Repositories
                     TotalCount = totalCount
             };
         }
+        */
+        public async Task<PagedResponse<JobResponse>>
+              GetActiveListingsPagedAsync(
+              JobListingFilterQuery filter,
+              int page,
+              int pageSize)
+        {
+              IQueryable<JobListing> query =
+             _context.JobListings
+             .Include(j => j.Company)
+             .Include(j => j.Applications)
+             .Where(j => j.IsOpen);
 
+             // =====================
+             // Filters
+             // =====================
+
+          if (!string.IsNullOrWhiteSpace(filter.Location))
+         {
+            query = query.Where(j =>
+            j.Location.ToLower()
+                .Contains(filter.Location.ToLower()));
+         }
+
+          if (!string.IsNullOrWhiteSpace(filter.EmploymentType))
+         {
+            query = query.Where(j =>
+            j.EmploymentType ==
+            filter.EmploymentType);
+         }
+
+         if (filter.SalaryMin.HasValue)
+         {
+            query = query.Where(j =>
+            j.SalaryMin >= filter.SalaryMin.Value);
+         }
+
+         if (filter.SalaryMax.HasValue)
+         {
+           query = query.Where(j =>
+            j.SalaryMax <= filter.SalaryMax.Value);
+         }
+
+         if (filter.CompanyId.HasValue)
+        {
+        query = query.Where(j =>
+            j.CompanyId ==
+            filter.CompanyId.Value);
+        }
+
+        // =====================
+        // Sorting
+        // =====================
+
+         var dir = filter.Dir?.ToLower();
+
+         query = filter.Sort.ToLower() switch
+         {
+           "salarymin" =>
+            dir == "desc"
+                ? query.OrderByDescending(j => j.SalaryMin)
+                : query.OrderBy(j => j.SalaryMin),
+
+            "salarymax" =>
+            dir == "asc"
+                ? query.OrderBy(j => j.SalaryMax)
+                : query.OrderByDescending(j => j.SalaryMax),
+
+            "title" =>
+            dir == "desc"
+                ? query.OrderByDescending(j => j.Title)
+                : query.OrderBy(j => j.Title),
+
+           "postedat" =>
+            dir == "asc"
+                ? query.OrderBy(j => j.PostedDate)
+                : query.OrderByDescending(j => j.PostedDate),
+
+             _    =>
+            query.OrderByDescending(j => j.PostedDate)
+           };
+
+            var totalCount =
+           await query.CountAsync();
+
+           var jobs = await query
+          .Skip((page - 1) * pageSize)
+          .Take(pageSize)
+          .Select(j => new JobResponse
+           {
+            Id = j.Id,
+            Title = j.Title,
+            Description = j.Description,
+            Company = j.Company.Name,
+            Location = j.Location,
+            PostedAt = j.PostedDate,
+            ApplicationCount =
+                j.Applications.Count()
+           })
+           .ToListAsync();
+
+           return new PagedResponse<JobResponse>
+          {
+           Data = jobs,
+           Page = page,
+           PageSize = pageSize,
+           TotalCount = totalCount
+          };
+        }
         public async Task<JobResponse?> GetListingDetailsAsync(Guid id)
         {
             return await _context.JobListings
