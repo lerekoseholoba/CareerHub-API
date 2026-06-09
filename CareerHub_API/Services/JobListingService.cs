@@ -15,12 +15,16 @@ namespace CareerHub_API.Services
             _jobRepo = jobRepo;
             _companyRepo = companyRepo;
         }
-
-        public async Task<List<JobResponse>> GetAllAsync()
+        public async Task<PagedResponse<JobResponse>>
+                                      GetAllAsync(
+                                      int page,
+                                      int pageSize)
         {
-            return await _jobRepo.GetActiveListingsAsync();
+             return await _jobRepo
+             .GetActiveListingsPagedAsync(
+              page,
+              pageSize);
         }
-
         public async Task<JobResponse> GetByIdAsync(Guid id)
         {
             var job = await _jobRepo.GetListingDetailsAsync(id);

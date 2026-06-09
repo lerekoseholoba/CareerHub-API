@@ -14,10 +14,20 @@ namespace CareerHub_API.Repositories
             _context = context;
         }
 
-        public async Task<List<JobResponse>> GetActiveListingsAsync()
+        public async Task<PagedResponse<JobResponse>>
+                     GetActiveListingsPagedAsync(
+                     int page,
+                      int pageSize)
         {
-            return await _context.JobListings
-                .Where(j => j.IsOpen) // or ClosingDate check
+             var query = _context.JobListings
+             .Where(j => j.IsOpen)
+             .OrderByDescending(j => j.PostedDate);
+
+             var totalCount = await query.CountAsync();
+
+             var jobs = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(j => new JobResponse
                 {
                     Id = j.Id,
@@ -26,9 +36,18 @@ namespace CareerHub_API.Repositories
                     Company = j.Company.Name,
                     Location = j.Location,
                     PostedAt = j.PostedDate,
-                    ApplicationCount = j.Applications.Count()
+                    ApplicationCount =
+                    j.Applications.Count()
                 })
-                .ToListAsync();
+                 .ToListAsync();
+
+            return new PagedResponse<JobResponse>
+            {
+                    Data = jobs,
+                    Page = page,
+                    PageSize = pageSize,
+                    TotalCount = totalCount
+            };
         }
 
         public async Task<JobResponse?> GetListingDetailsAsync(Guid id)

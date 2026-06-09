@@ -18,11 +18,27 @@ public class JobsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> GetAllJobs()
+    public async Task<IActionResult> GetAllJobs(
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 20)
     {
-        var jobs = await _jobListingService.GetAllAsync();
-        return Ok(jobs);
-    }
+        if (page < 1)
+          page = 1;
+
+        if (pageSize < 1)
+          pageSize = 20;
+
+        var result =
+          await _jobListingService
+            .GetAllAsync(
+                page,
+                pageSize);
+
+          Response.Headers["X-Total-Count"] =
+          result.TotalCount.ToString();
+
+        return Ok(result);
+   }
 
     [AllowAnonymous]
     [HttpGet("{id:guid}")]
