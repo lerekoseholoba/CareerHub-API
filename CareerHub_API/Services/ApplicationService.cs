@@ -1,8 +1,6 @@
 using CareerHub_API.DTOs;
-using CareerHub_API.Exceptions;
 using CareerHub_API.Models;
 using CareerHub_API.Repositories;
-using CareerHub_API.Utilities;
 
 namespace CareerHub_API.Services
 {
@@ -17,51 +15,78 @@ namespace CareerHub_API.Services
             _jobRepo = jobRepo;
         }
 
-        public async Task SubmitApplicationAsync(CreateApplicationRequest request)
+        public async Task<ServiceResult<Application>> ApplyToJobAsync(CreateApplicationRequest request)
         {
-            // Rule: cannot apply after closing
-            if (!await _jobRepo.IsOpenAsync(request.JobListingId))
-                throw new ListingClosedException();
-
-            // Rule: cannot apply twice
-            if (await _appRepo.ApplicantAlreadyAppliedAsync(request.ApplicantId, request.JobListingId))
-                throw new DuplicateApplicationException();
-                
-            var application = new Application
+            try
             {
-                ApplicantId = request.ApplicantId,
-                JobListingId = request.JobListingId,
-                ResumeUrl = request.ResumeUrl,
-                CoverLetter = request.CoverLetter,
-                Status = ApplicationStatus.Submitted,
-                SubmittedAt = DateTime.UtcNow
-            };
+                // Rule: cannot apply after closing
+                if (!await _jobRepo.IsOpenAsync(request.JobListingId))
+                    return ServiceResult<Application>.Failure("Job listing is closed");
 
-            await _appRepo.AddAsync(application);
+                // Rule: cannot apply twice
+                if (await _appRepo.ApplicantAlreadyAppliedAsync(request.ApplicantId, request.JobListingId))
+                    return ServiceResult<Application>.Failure("You have already applied to this job");
+
+                var application = new Application
+                {
+                    ApplicantId = request.ApplicantId,
+                    JobListingId = request.JobListingId,
+                    Status = ApplicationStatus.Submitted,
+                    SubmittedAt = DateTime.UtcNow
+                };
+
+                await _appRepo.AddAsync(application);
+                return ServiceResult<Application>.Success("Application submitted successfully", application);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<Application>.Failure(ex.Message);
+            }
         }
 
-        public async Task UpdateStatusAsync(Guid applicantId, Guid jobId, ApplicationStatus status)
+        public async Task<ServiceResult<List<Application>>> GetApplicationsForJobAsync(Guid jobId)
         {
-            var app = await _appRepo.GetByIdAsync(applicantId, jobId)
-                      ?? throw new Exception("Application not found");
-
-            if (!ApplicationStatusRules.IsValidTransition(app.Status, status))
-                throw new InvalidStatusTransitionException(app.Status, status);
-
-            app.Status = status;
-            await _appRepo.UpdateStatusAsync(app);
+            try
+            {
+                var applications = await _appRepo.GetApplicationsForListingAsync(jobId);
+                return ServiceResult<List<Application>>.Success("Applications retrieved", applications);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<List<Application>>.Failure(ex.Message);
+            }
         }
 
-        public async Task WithdrawAsync(Guid applicantId, Guid jobId, Guid currentUserApplicantId)
+        public async Task<ServiceResult<List<Application>>> GetApplicationsForUserAsync(Guid userId)
         {
-            var app = await _appRepo.GetByIdAsync(applicantId, jobId)
-                      ?? throw new Exception("Application not found");
+            try
+            {
+                var applications = await _appRepo.GetApplicationsByApplicantAsync(userId);
+                return ServiceResult<List<Application>>.Success("Applications retrieved", applications);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<List<Application>>.Failure(ex.Message);
+            }
+        }
 
-            if (app.ApplicantId != currentUserApplicantId)
-                throw new UnauthorizedApplicationAccessException();
+        public async Task<ServiceResult<string>> WithdrawApplicationAsync(Guid applicationId)
+        {
+            try
+            {
+                var applications = await _appRepo.GetApplicationsByApplicantAsync(applicationId);
+                if (applications.Count == 0)
+                    return ServiceResult<string>.Failure("Application not found");
 
-            app.Status = ApplicationStatus.Withdrawn;
-            await _appRepo.UpdateStatusAsync(app);
+                var application = applications.First();
+                application.TransitionTo(ApplicationStatus.Rejected);
+                await _appRepo.UpdateStatusAsync(application);
+                return ServiceResult<string>.Success("Application withdrawn successfully", "Success");
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<string>.Failure(ex.Message);
+            }
         }
         public async Task<ApplicationResponse> UpdateStatusAsync(Guid applicantId,Guid jobId,
                                                          UpdateApplicationStatusRequest request)
