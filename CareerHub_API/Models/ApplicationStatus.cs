@@ -4,7 +4,8 @@ public enum ApplicationStatus
 {
     Submitted,
     UnderReview,
-    InterviewScheduled,
+    Shortlisted,
+    Offered,
     Rejected,
-    Accepted
+    Withdrawn
 }

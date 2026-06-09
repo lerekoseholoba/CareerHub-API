@@ -17,5 +17,9 @@ public class JobListing
 
     public string Location { get; set; } = string.Empty;
 
-    public DateTime PostedDate { get; set; } = DateTime.UtcNow;
+    public DateTime PostedDate { get; set; }
+
+    public DateTime ClosingDate { get; set; }
+
+    public bool IsOpen { get; set; }
 }

@@ -34,7 +34,7 @@ namespace CareerHub_API.Services
                 ResumeUrl = request.ResumeUrl,
                 CoverLetter = request.CoverLetter,
                 Status = ApplicationStatus.Submitted,
-                AppliedAt = DateTime.UtcNow
+                SubmittedAt = DateTime.UtcNow
             };
 
             await _appRepo.AddAsync(application);

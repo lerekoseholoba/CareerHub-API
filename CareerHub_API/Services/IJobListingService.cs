@@ -1,3 +1,6 @@
+using CareerHub_API.DTOs;
+using CareerHub_API.Models;
+
 namespace CareerHub_API.Services
 {
     public interface IJobListingService

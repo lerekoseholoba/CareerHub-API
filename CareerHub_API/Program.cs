@@ -32,9 +32,6 @@ builder.Services.AddAuthServices();
 builder.Services.AddJobServices();
 builder.Services.AddApplicationServices();
 
-// Enable build-time DI validation
-builder.Services.ValidateOnBuild = true;
-
 // ----------------------
 // Problem Details / Exceptions / Middleware
 // ----------------------
@@ -59,6 +56,9 @@ builder.Services.AddCors(options =>
 // JWT Authentication
 // ----------------------
 var jwtSecretKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrEmpty(jwtSecretKey))
+    throw new InvalidOperationException("JWT Secret key is not configured");
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -77,9 +77,12 @@ builder.Services.AddAuthorization();
 // ----------------------
 // DbContext
 // ----------------------
-options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
-       .EnableSensitiveDataLogging()
-       .LogTo(Console.WriteLine, LogLevel.Information);
+builder.Services.AddDbContext<CareerHubDbContext>(options =>
+{
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"))
+           .EnableSensitiveDataLogging()
+           .LogTo(Console.WriteLine, LogLevel.Information);
+});
 
 // ----------------------
 // Build App

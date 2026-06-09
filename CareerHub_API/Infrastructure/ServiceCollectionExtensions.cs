@@ -26,10 +26,11 @@ namespace CareerHub_API.Infrastructure
         public static IServiceCollection AddJobServices(this IServiceCollection services)
         {
             // Services
-            services.AddScoped<IJobService, JobService>();
+            services.AddScoped<IJobListingService, JobListingService>();
 
             // Repositories
-            // services.AddScoped<IJobRepository, JobRepository>();
+            services.AddScoped<IJobListingRepository, JobListingRepository>();
+            services.AddScoped<ICompanyRepository, CompanyRepository>();
 
             return services;
         }
@@ -43,7 +44,7 @@ namespace CareerHub_API.Infrastructure
             services.AddScoped<IApplicationService, ApplicationService>();
 
             // Repositories
-            // services.AddScoped<IApplicationRepository, ApplicationRepository>();
+            services.AddScoped<IApplicationRepository, ApplicationRepository>();
 
             return services;
         }

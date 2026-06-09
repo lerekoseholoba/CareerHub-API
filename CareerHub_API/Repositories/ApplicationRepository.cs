@@ -1,3 +1,9 @@
+using CareerHub_API.Data;
+using CareerHub_API.Models;
+using Microsoft.EntityFrameworkCore;
+
+namespace CareerHub_API.Repositories;
+
 public class ApplicationRepository : IApplicationRepository
 {
     private readonly CareerHubDbContext _context;

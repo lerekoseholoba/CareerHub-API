@@ -21,12 +21,12 @@ namespace CareerHub_API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await _authService.RegisterAsync(request);
+            if (request.Password != request.ConfirmPassword)
+                return BadRequest(new { message = "Passwords do not match" });
 
-            if (!result.Success)
-                return BadRequest(new { message = result.Message });
+            var applicant = await _authService.RegisterApplicantAsync(request.Name, request.Email, request.Password);
 
-            return Ok(new { message = result.Message });
+            return Ok(new { message = "Registration successful", applicantId = applicant.Id });
         }
 
         [HttpPost("login")]
@@ -35,16 +35,20 @@ namespace CareerHub_API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await _authService.LoginAsync(request);
-
-            if (!result.Success)
-                return Unauthorized(new { message = result.Message });
-
-            return Ok(new
+            try
             {
-                token = result.Token,
-                message = result.Message
-            });
+                var token = await _authService.AuthenticateApplicantAsync(request.Email, request.Password);
+
+                return Ok(new
+                {
+                    token = token,
+                    message = "Login successful"
+                });
+            }
+            catch (Exception ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
         }
     }
 }
