@@ -118,4 +118,8 @@ public class JobsController : ControllerBase
         await _jobListingService.CloseAsync(id);
         return NoContent();
     }
+    [Authorize(Roles = "Employer")]
+    [HttpPatch("{id:guid}")]
+    public async Task<IActionResult> PatchJob(Guid id,[FromBody] UpdateJobListingRequest request)
+    => Ok(await _jobListingService.PatchAsync(id, request));
 }
