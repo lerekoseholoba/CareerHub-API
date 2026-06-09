@@ -535,6 +535,683 @@ from singleton 'CareerHub_API.Services.JobListingService'.
 
 The DI container enforces lifetime rules at build-time to prevent these runtime issues and ensure that Scoped dependencies are never captured by longer-lived Singletons.
 ## Author
+# CareerHub API — Assignment 3.1
+
+## Part 1 — Written Decisions
+
+### 1. Pagination Strategy
+
+For the CareerHub job board I chose **offset pagination** using `Skip()` and `Take()`.
+
+Offset pagination is simple to implement, easy for frontend developers to consume, and works well for traditional page-based navigation where users expect to jump to page numbers such as page 1, page 2, page 3, and so on.
+
+A known drawback of offset pagination occurs when new records are inserted between requests.
+
+Example:
+
+1. User requests page 1 sorted by newest listings first.
+2. The response contains jobs 1–20.
+3. A new job listing is posted.
+4. User requests page 2.
+5. Because the new listing shifted all rows down by one position, one listing may appear twice or one listing may be skipped.
+
+This inconsistency is generally acceptable for a job board because:
+
+* Job listings are not financial transactions or inventory records.
+* Users primarily care about discovering available jobs rather than viewing an exact immutable sequence.
+* The newest jobs appearing sooner is usually beneficial.
+* The simplicity and ease of implementation outweigh the occasional duplicate or skipped listing.
+
+Cursor pagination would provide stronger consistency but would require a unique indexed cursor column such as `(PostedAt, Id)` and would make arbitrary page navigation more difficult.
+
+For CareerHub, offset pagination is the most practical choice.
+
+---
+
+### 2. PATCH vs PUT
+
+The existing `PUT /api/jobs/{id}` endpoint requires the entire job listing to be submitted.
+
+Consider the following scenario:
+
+#### Initial State
+
+SalaryMin = 50000
+
+Description = "Junior Developer"
+
+#### Recruiter A
+
+Opens the listing and sees:
+
+SalaryMin = 50000
+
+Description = "Junior Developer"
+
+#### Recruiter B
+
+Opens the same listing and sees:
+
+SalaryMin = 50000
+
+Description = "Junior Developer"
+
+#### Recruiter A submits PUT
+
+Changes:
+
+SalaryMin = 75000
+
+The database now contains:
+
+SalaryMin = 75000
+
+Description = "Junior Developer"
+
+#### Recruiter B submits PUT
+
+Changes:
+
+Description = "Junior Developer (Remote)"
+
+However, Recruiter B's request still contains:
+
+SalaryMin = 50000
+
+because the page was loaded before Recruiter A's update.
+
+The database now contains:
+
+SalaryMin = 50000
+
+Description = "Junior Developer (Remote)"
+
+Recruiter A's salary update is silently lost.
+
+This is known as a lost-update race condition.
+
+### Why PATCH helps
+
+The PATCH DTO contains nullable properties.
+
+Example:
+
+```json
+{
+  "salaryMin": 75000
+}
+```
+
+Only the supplied field is updated.
+
+Fields omitted from the request remain unchanged.
+
+Recruiter A can update salary without touching description.
+
+Recruiter B can update description without touching salary.
+
+Both updates can succeed without overwriting each other.
+
+### Limitation of Nullable DTO PATCH
+
+Nullable DTO PATCH cannot express:
+
+* remove operations
+* move operations
+* copy operations
+* array element manipulation
+
+JSON Patch (RFC 6902) supports these operations and is more expressive.
+
+---
+
+### 3. Versioning Strategy
+
+A **breaking change** is a change that causes existing clients to fail.
+
+Example:
+
+Renaming:
+
+```json
+{
+  "salaryMin": 50000
+}
+```
+
+to
+
+```json
+{
+  "minimumSalary": 50000
+}
+```
+
+would break any frontend expecting `salaryMin`.
+
+A **non-breaking change** is a change that existing clients can safely ignore.
+
+Example:
+
+Adding:
+
+```json
+{
+  "salaryMin": 50000,
+  "remoteFriendly": true
+}
+```
+
+Older clients continue to function because they ignore unknown fields.
+
+### AssumeDefaultVersionWhenUnspecified
+
+```csharp
+options.AssumeDefaultVersionWhenUnspecified = true;
+```
+
+allows requests such as:
+
+```http
+GET /api/jobs
+```
+
+to automatically use:
+
+```http
+GET /api/v1/jobs
+```
+
+This prevents existing clients from breaking when versioning is introduced.
+
+Without this setting, every existing request would immediately fail until clients were updated.
+
+---
+
+### 4. Rate Limiting Algorithm
+
+For application submissions I chose a **Fixed Window** rate limiter.
+
+Policy:
+
+* 5 requests
+* per 60 minutes
+
+A known weakness of fixed window algorithms is burst traffic.
+
+Example:
+
+A user sends:
+
+* 5 requests at 12:59
+* 5 requests at 1:00
+
+This effectively allows 10 requests within a very short period.
+
+For CareerHub this is acceptable because:
+
+* The limit is already extremely low.
+* Applications are relatively infrequent actions.
+* The endpoint is authenticated.
+* Simplicity is more valuable than implementing a more complex algorithm.
+
+A sliding window would provide smoother enforcement but is unnecessary for this use case.
+
+---
+
+# Part 2 — CORS Configuration
+
+The API uses a named CORS policy that:
+
+* Allows `http://localhost:3000`
+* Allows a production origin
+* Allows all methods
+* Allows all headers
+* Allows credentials
+* Exposes the `X-Total-Count` response header
+
+Example:
+
+```csharp
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:3000",
+                "https://careerhub.com")
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials()
+            .WithExposedHeaders("X-Total-Count");
+    });
+});
+```
+
+### Why AllowAnyOrigin + AllowCredentials Is Invalid
+
+This configuration is prohibited:
+
+```csharp
+.AllowAnyOrigin()
+.AllowCredentials()
+```
+
+Browsers reject it because credentials would be exposed to every origin on the internet.
+
+ASP.NET Core throws a startup exception to prevent this insecure configuration.
+
+---
+
+# Part 3 — Pagination
+
+Implemented pagination on:
+
+* GET `/api/v1/jobs`
+* GET `/api/v1/jobs/company/{companyId}`
+
+The API returns:
+
+```json
+{
+  "data": [],
+  "page": 2,
+  "pageSize": 5,
+  "totalCount": 250,
+  "totalPages": 50,
+  "hasNextPage": true,
+  "hasPreviousPage": true
+}
+```
+
+The repository implementation performs exactly two database queries:
+
+1. `CountAsync()`
+2. `ToListAsync()`
+
+Both operate on the same `IQueryable`.
+
+Default sort:
+
+```csharp
+OrderByDescending(j => j.PostedDate)
+```
+
+which guarantees deterministic pagination.
+
+---
+
+# Part 4 — Filtering and Sorting
+
+Supported filters:
+
+| Parameter      | Behaviour                      |
+| -------------- | ------------------------------ |
+| location       | Case-insensitive partial match |
+| employmentType | Exact match                    |
+| salaryMin      | SalaryMin >= value             |
+| salaryMax      | SalaryMax <= value             |
+| companyId      | Match company                  |
+
+Supported sorting:
+
+| Sort      | Default Direction |
+| --------- | ----------------- |
+| postedAt  | Desc              |
+| salaryMin | Asc               |
+| salaryMax | Desc              |
+| title     | Asc               |
+
+Example:
+
+```http
+GET /api/v1/jobs?employmentType=FullTime&salaryMin=60000&sort=salaryMin&dir=asc
+```
+
+returns:
+
+* FullTime jobs only
+* SalaryMin >= 60000
+* Ordered by SalaryMin ascending
+
+All filters are combined using AND logic.
+
+---
+
+# Part 5 — PATCH Endpoints
+
+## Job Listing PATCH
+
+Endpoint:
+
+```http
+PATCH /api/v1/jobs/{id}
+```
+
+Example:
+
+```json
+{
+  "salaryMin": 75000
+}
+```
+
+Only `salaryMin` is updated.
+
+Validation:
+
+* SalaryMin <= SalaryMax
+* ExpiresAt > current time
+
+Invalid example:
+
+```json
+{
+  "salaryMin": 90000,
+  "salaryMax": 50000
+}
+```
+
+Returns:
+
+```http
+400 Bad Request
+```
+
+---
+
+## Application Status PATCH
+
+Endpoint:
+
+```http
+PATCH /api/v1/applications/{id}/status
+```
+
+Example:
+
+```json
+{
+  "status": "UnderReview"
+}
+```
+
+Allowed transition:
+
+```text
+Submitted -> UnderReview
+```
+
+Illegal transition:
+
+```text
+Rejected -> Submitted
+```
+
+Returns:
+
+```http
+400 Bad Request
+```
+
+with a clear error message.
+
+---
+
+# Part 6 — Versioning Lifecycle
+
+Versioning uses URL segments:
+
+```http
+/api/v1/jobs
+```
+
+Configuration:
+
+```csharp
+options.DefaultApiVersion = new ApiVersion(1,0);
+options.AssumeDefaultVersionWhenUnspecified = true;
+options.ReportApiVersions = true;
+```
+
+Response header:
+
+```http
+api-supported-versions: 1.0
+```
+
+### Introducing v2
+
+Suppose:
+
+```json
+{
+  "salaryMin": 50000
+}
+```
+
+must become:
+
+```json
+{
+  "minimumSalary": 50000
+}
+```
+
+#### Keep
+
+* Existing v1 controllers
+* Existing v1 DTOs
+* Existing v1 routes
+
+#### Add
+
+* New v2 controllers
+* New v2 DTOs
+* New v2 routes
+
+```http
+/api/v2/jobs
+```
+
+#### Deprecation
+
+Run v1 and v2 simultaneously for approximately:
+
+* 6–12 months
+
+During this period:
+
+```http
+api-supported-versions
+api-deprecated-versions
+```
+
+inform clients that v1 will be removed.
+
+Only after all consumers migrate should v1 be removed.
+
+---
+
+# Part 7 — ETag Fingerprints
+
+Current ETag strategy:
+
+### Job Listing
+
+Based on:
+
+* Id
+* PostedAt ticks
+* SalaryMin
+
+### Application
+
+Based on:
+
+* ApplicationId
+* Status
+
+Example:
+
+```http
+ETag: "job-123-638749328000000000-50000"
+```
+
+### Limitation
+
+Suppose:
+
+Description changes.
+
+PostedAt remains unchanged.
+
+SalaryMin remains unchanged.
+
+The ETag remains identical.
+
+The client may receive:
+
+```http
+304 Not Modified
+```
+
+even though the description changed.
+
+This is a stale cache scenario.
+
+### Stronger ETag
+
+Add:
+
+```csharp
+DateTime UpdatedAt
+```
+
+to:
+
+* JobListing
+* Application
+
+Update this field whenever any meaningful property changes.
+
+Then build the ETag using:
+
+```text
+Id + UpdatedAt.Ticks
+```
+
+Every modification produces a new ETag.
+
+This guarantees cache invalidation.
+
+---
+
+# Part 8 — Rate Limiting
+
+Configured policies:
+
+| Policy       | Algorithm      | Limit     |
+| ------------ | -------------- | --------- |
+| global       | Fixed Window   | 200 / 60s |
+| search       | Sliding Window | 30 / 60s  |
+| apply        | Fixed Window   | 5 / 60m   |
+| post-listing | Fixed Window   | 10 / 60m  |
+
+Search uses:
+
+```csharp
+SegmentsPerWindow = 6
+```
+
+which evaluates every 10 seconds.
+
+### Why Apply Uses 60 Minutes
+
+Submitting job applications is a rare user action.
+
+A 60-second window would be too aggressive and could block legitimate users applying for multiple positions.
+
+A 60-minute window still prevents automated abuse while allowing normal usage.
+
+### Why IP-Based Limiting Is Insufficient
+
+Once users are authenticated, multiple users may share the same IP address.
+
+Examples:
+
+* Corporate networks
+* Universities
+* Mobile carrier NATs
+
+Rate limiting by IP could block legitimate users.
+
+A better partition key is:
+
+```text
+sub
+```
+
+the JWT subject claim.
+
+Benefits:
+
+* Unique per user
+* Cannot be affected by shared networks
+* Prevents one user from consuming another user's quota
+
+This provides stronger identity-based protection than IP addresses.
+
+---
+
+# Connection Pool Sizing Revisited
+
+In Assignment 2.4, connection pool sizing was calculated based on expected concurrency.
+
+Rate limiting reduces the arrival rate of requests before they reach the database.
+
+Without rate limiting:
+
+```text
+Incoming Requests
+        ↓
+Connection Pool
+        ↓
+Database
+```
+
+Under heavy load requests accumulate waiting for connections.
+
+With rate limiting:
+
+```text
+Incoming Requests
+        ↓
+Rate Limiter
+        ↓
+Connection Pool
+        ↓
+Database
+```
+
+Excess requests are rejected immediately with:
+
+```http
+429 Too Many Requests
+```
+
+instead of waiting for a connection.
+
+This reduces:
+
+* Queue growth
+* Connection contention
+* Database pressure
+* Pool exhaustion risk
+
+and improves overall system stability under sustained load.
+
 
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)
