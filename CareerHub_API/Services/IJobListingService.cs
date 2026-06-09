@@ -18,5 +18,6 @@ namespace CareerHub_API.Services
         Task<JobResponse> CreateAsync(CreateJobRequest request);
         Task<JobResponse> UpdateAsync(Guid id, UpdateJobRequest request);
         Task CloseAsync(Guid id);
+        Task<JobResponse> PatchAsync(Guid id,UpdateJobListingRequest request);
     }
 }

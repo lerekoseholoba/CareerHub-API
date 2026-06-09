@@ -2,6 +2,7 @@ using CareerHub_API.Data;
 using CareerHub_API.DTOs;
 using CareerHub_API.Models;
 using Microsoft.EntityFrameworkCore;
+using CareerHub_API.Exceptions;
 
 namespace CareerHub_API.Repositories
 {
@@ -211,5 +212,63 @@ namespace CareerHub_API.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+     //Patch method implementation
+     public async Task<JobResponse> PatchAsync( Guid id, UpdateJobListingRequest request)
+     {
+        var job = await _context.JobListings
+        .Include(j => j.Company)
+        .Include(j => j.Applications)
+        .FirstOrDefaultAsync(j => j.Id == id);
+
+        if (job == null)
+        throw new Exception("Job not found");
+
+        if (request.Title != null)
+        job.Title = request.Title;
+
+       if (request.Description != null)
+        job.Description = request.Description;
+
+       if (request.Location != null)
+        job.Location = request.Location;
+
+       if (request.EmploymentType != null)
+        job.EmploymentType = request.EmploymentType;
+
+       if (request.SalaryMin.HasValue)
+        job.SalaryMin = request.SalaryMin.Value;
+
+       if (request.SalaryMax.HasValue)
+        job.SalaryMax = request.SalaryMax.Value;
+
+       if (request.ExpiresAt.HasValue)
+       {
+        if (request.ExpiresAt <= DateTime.UtcNow)
+            throw new InvalidClosingDateException();
+
+        job.ClosingDate = request.ExpiresAt.Value;
+      }
+
+     if (request.SalaryMin.HasValue ||
+        request.SalaryMax.HasValue)
+     {
+        if (job.SalaryMin > job.SalaryMax)
+            throw new Exception(
+                "SalaryMin cannot be greater than SalaryMax");
+     }
+
+     await _context.SaveChangesAsync();
+
+     return new JobResponse
+     {
+        Id = job.Id,
+        Title = job.Title,
+        Description = job.Description,
+        Company = job.Company.Name,
+        Location = job.Location,
+        PostedAt = job.PostedDate,
+        ApplicationCount = job.Applications.Count
+     };
+    }
     }
 }

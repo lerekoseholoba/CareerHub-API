@@ -110,5 +110,10 @@ namespace CareerHub_API.Services
 
             await _jobRepo.CloseAsync(id);
         }
+        //Patch method in service layer
+        public async Task<JobResponse> PatchAsync(Guid id, UpdateJobListingRequest request)
+        {
+          return await _jobRepo.PatchAsync(id, request);
+        }
     }
 }

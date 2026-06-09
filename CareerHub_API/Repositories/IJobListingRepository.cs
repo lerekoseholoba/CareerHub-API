@@ -26,5 +26,7 @@ namespace CareerHub_API.Repositories
         Task UpdateAsync(JobListing listing);
 
         Task CloseAsync(Guid id);
+
+        Task<JobResponse> PatchAsync(Guid id, UpdateJobListingRequest request);
     }
 }
