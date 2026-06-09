@@ -1,3 +1,5 @@
+using CareerHub_API.Models;
+
 namespace CareerHub_API.Models;
 
 public class Application
@@ -15,9 +17,9 @@ public class Application
     private static readonly Dictionary<ApplicationStatus, ApplicationStatus[]> ValidTransitions = new()
     {
         { ApplicationStatus.Submitted, new[] { ApplicationStatus.UnderReview } },
-        { ApplicationStatus.UnderReview, new[] { ApplicationStatus.Shortlisted, ApplicationStatus.Rejected } },
-        { ApplicationStatus.Shortlisted, new[] { ApplicationStatus.Offered, ApplicationStatus.Rejected } },
-        { ApplicationStatus.Offered, Array.Empty<ApplicationStatus>() },
+        { ApplicationStatus.UnderReview, new[] { ApplicationStatus.InterviewScheduled, ApplicationStatus.Rejected } },
+        { ApplicationStatus.InterviewScheduled, new[] { ApplicationStatus.Accepted, ApplicationStatus.Rejected } },
+        { ApplicationStatus.Accepted, Array.Empty<ApplicationStatus>() },
         { ApplicationStatus.Rejected, Array.Empty<ApplicationStatus>() }
     };
 
