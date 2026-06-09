@@ -48,5 +48,31 @@ namespace CareerHub_API.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
+        [Authorize(Roles = "Recruiter")]
+        [HttpPatch("{applicantId:guid}/{jobId:guid}/status")]
+        public async Task<IActionResult> UpdateApplicationStatus(
+        Guid applicantId,
+        Guid jobId,
+        [FromBody] UpdateApplicationStatusRequest request)
+       {
+             try
+            {
+                var result =
+                 await _applicationService
+                .UpdateStatusAsync(
+                    applicantId,
+                    jobId,
+                    request);
+
+             return Ok(result);
+           }
+            catch (Exception ex)
+         {
+           return BadRequest(new
+          {
+            message = ex.Message
+          });
+        }
+       }
     }
 }

@@ -63,5 +63,39 @@ namespace CareerHub_API.Services
             app.Status = ApplicationStatus.Withdrawn;
             await _appRepo.UpdateStatusAsync(app);
         }
+        public async Task<ApplicationResponse> UpdateStatusAsync(Guid applicantId,Guid jobId,
+                                                         UpdateApplicationStatusRequest request)
+        {
+            var application =
+            await _appRepo.GetByIdAsync(
+            applicantId,
+            jobId);
+
+           if (application == null)
+           throw new Exception("Application not found");
+
+           if ((application.Status == ApplicationStatus.Rejected ||
+           application.Status == ApplicationStatus.Offered)
+           &&
+           request.Status == ApplicationStatus.Submitted)
+         {
+            throw new Exception(
+            "Cannot move Rejected or Offered application back to Submitted");
+         }
+
+         application.Status = request.Status;
+
+         await _appRepo.UpdateStatusAsync(application);
+
+         return new ApplicationResponse
+        {
+        ApplicantId = application.ApplicantId,
+        JobListingId = application.JobListingId,
+        ApplicantName = application.Applicant.Name,
+        JobTitle = application.JobListing.Title,
+        Status = application.Status,
+        SubmittedAt = application.SubmittedAt
+        };
+       }
     }
 }
