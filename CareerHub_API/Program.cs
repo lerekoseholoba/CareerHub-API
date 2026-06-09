@@ -44,12 +44,19 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 // ----------------------
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("FrontEndPolicy", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+    options.AddPolicy("Frontend",
+        policy =>
+        {
+            policy
+                .WithOrigins(
+                    "http://localhost:3000",
+                    "https://careerhub.com")
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials()
+                .WithExposedHeaders(
+                    "X-Total-Count");
+        });
 });
 
 // ----------------------
