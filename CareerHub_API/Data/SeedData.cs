@@ -158,7 +158,7 @@ public static class SeedData
                 JobListingId = job3.Id,
                 ApplicantId = applicant3.Id,
                 SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                Status = ApplicationStatus.InterviewScheduled
+                Status = ApplicationStatus.Shortlisted
             },
             new Application
             {
@@ -172,7 +172,7 @@ public static class SeedData
                 JobListingId = job5.Id,
                 ApplicantId = applicant5.Id,
                 SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                Status = ApplicationStatus.Accepted
+                Status = ApplicationStatus.Offered
             }
         );
     }

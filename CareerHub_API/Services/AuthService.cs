@@ -1,5 +1,6 @@
 using CareerHub_API.Data;
 using CareerHub_API.Models;
+using CareerHub_API.Utilities;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;

@@ -10,10 +10,10 @@ public class CreateJobRequest : IValidatableObject
     public string Title { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(80, MinimumLength = 2)]
-    public string Company { get; set; } = string.Empty;
+    public Guid CompanyId { get; set; }
 
     [Required]
+    [StringLength(80, MinimumLength = 2)]
     public string Location { get; set; } = string.Empty;
 
     [Required]
@@ -21,7 +21,7 @@ public class CreateJobRequest : IValidatableObject
     public string Description { get; set; } = string.Empty;
 
     [Required]
-    public JobType Type { get; set; }
+    public DateTime ClosingDate { get; set; }
 
     [Range(0.01, double.MaxValue)]
     public decimal? SalaryMin { get; set; }
@@ -32,6 +32,13 @@ public class CreateJobRequest : IValidatableObject
     // Cross-field validation
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
+        if (ClosingDate <= DateTime.UtcNow)
+        {
+            yield return new ValidationResult(
+                "ClosingDate must be in the future",
+                new[] { nameof(ClosingDate) });
+        }
+
         if (SalaryMin.HasValue &&
             SalaryMax.HasValue &&
             SalaryMax <= SalaryMin)

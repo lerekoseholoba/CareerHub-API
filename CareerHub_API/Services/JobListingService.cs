@@ -77,7 +77,7 @@ namespace CareerHub_API.Services
                 CompanyId = request.CompanyId,
                 ClosingDate = request.ClosingDate,
                 Location = request.Location,
-                PostedDate = job.PostedAt,
+                PostedDate = DateTime.UtcNow,
                 IsOpen = true
             };
 

@@ -38,6 +38,13 @@ public class CareerHubDbContext : DbContext
             entity.Property(x => x.PostedDate)
                 .IsRequired();
 
+            entity.Property(x => x.ClosingDate)
+                .IsRequired();
+
+            entity.Property(x => x.IsOpen)
+                .IsRequired()
+                .HasDefaultValue(true);
+
             entity.HasIndex(x => x.Title);
 
             entity.HasOne(x => x.Company)
@@ -78,6 +85,9 @@ public class CareerHubDbContext : DbContext
 
             entity.Property(a => a.Email)
                 .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(a => a.PasswordHash)
                 .IsRequired();
 
             entity.HasIndex(a => a.Email)

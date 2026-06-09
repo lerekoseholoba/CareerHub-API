@@ -7,7 +7,7 @@ namespace CareerHub_API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize] // ensures only authenticated users can apply/manage applications
+    [Authorize]
     public class ApplicationsController : ControllerBase
     {
         private readonly IApplicationService _applicationService;
@@ -23,45 +23,30 @@ namespace CareerHub_API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result = await _applicationService.ApplyToJobAsync(request);
-
-            if (!result.Success)
-                return BadRequest(new { message = result.Message });
-
-            return Ok(new { message = result.Message, data = result.Application });
+            try
+            {
+                await _applicationService.SubmitApplicationAsync(request);
+                return Ok(new { message = "Application submitted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
-        [HttpGet("job/{jobId}")]
-        public async Task<IActionResult> GetApplicationsForJob(Guid jobId)
+        [HttpDelete("{jobId:guid}")]
+        public async Task<IActionResult> WithdrawApplication(Guid jobId)
         {
-            var result = await _applicationService.GetApplicationsForJobAsync(jobId);
-
-            if (!result.Success)
-                return NotFound(new { message = result.Message });
-
-            return Ok(result.Applications);
-        }
-
-        [HttpGet("user/{userId}")]
-        public async Task<IActionResult> GetApplicationsForUser(Guid userId)
-        {
-            var result = await _applicationService.GetApplicationsForUserAsync(userId);
-
-            if (!result.Success)
-                return NotFound(new { message = result.Message });
-
-            return Ok(result.Applications);
-        }
-
-        [HttpDelete("{applicationId}")]
-        public async Task<IActionResult> WithdrawApplication(Guid applicationId)
-        {
-            var result = await _applicationService.WithdrawApplicationAsync(applicationId);
-
-            if (!result.Success)
-                return BadRequest(new { message = result.Message });
-
-            return Ok(new { message = result.Message });
+            try
+            {
+                var applicantId = Guid.Parse(User.FindFirst("sub")?.Value ?? throw new UnauthorizedAccessException());
+                await _applicationService.WithdrawAsync(applicantId, jobId, applicantId);
+                return Ok(new { message = "Application withdrawn successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }
