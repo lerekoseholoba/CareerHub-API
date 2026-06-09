@@ -7,6 +7,10 @@ public static class SeedData
 {
     public static void Seed(ModelBuilder modelBuilder)
     {
+        // =========================
+        // Companies
+        // =========================
+
         var company1 = new Company
         {
             Id = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
@@ -47,59 +51,114 @@ public static class SeedData
             Industry = "Energy"
         };
 
-        modelBuilder.Entity<Company>().HasData(company1, company2, company3, company4, company5);
+        modelBuilder.Entity<Company>().HasData(
+            company1,
+            company2,
+            company3,
+            company4,
+            company5
+        );
 
-        var job1 = new JobListing
+        // =========================
+        // Job Listings (50)
+        // =========================
+
+        var jobs = new List<JobListing>();
+
+        var companies = new[]
         {
-            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
-            Title = "Backend Developer",
-            Description = "Build APIs with .NET",
-            Location = "Remote",
-            CompanyId = company1.Id,
-            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            company1.Id,
+            company2.Id,
+            company3.Id,
+            company4.Id,
+            company5.Id
         };
 
-        var job2 = new JobListing
+        var titles = new[]
         {
-            Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
-            Title = "Financial Analyst",
-            Description = "Analyse financial data",
-            Location = "Johannesburg",
-            CompanyId = company2.Id,
-            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            "Backend Developer",
+            "Frontend Developer",
+            "Full Stack Developer",
+            "Cloud Engineer",
+            "DevOps Engineer",
+            "Software Engineer",
+            "Data Analyst",
+            "Business Analyst",
+            "Financial Analyst",
+            "Project Manager"
         };
 
-        var job3 = new JobListing
+        var locations = new[]
         {
-            Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
-            Title = "Nurse Specialist",
-            Description = "Patient care and support",
-            Location = "Cape Town",
-            CompanyId = company3.Id,
-            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            "Cape Town",
+            "Johannesburg",
+            "Pretoria",
+            "Durban",
+            "Remote"
         };
 
-        var job4 = new JobListing
+        var employmentTypes = new[]
         {
-            Id = Guid.Parse("44444444-4444-4444-4444-444444444444"),
-            Title = "Lecturer",
-            Description = "Teach computer science",
-            Location = "Pretoria",
-            CompanyId = company4.Id,
-            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            "Full-Time",
+            "Part-Time",
+            "Contract",
+            "Internship"
         };
 
-        var job5 = new JobListing
+        for (int i = 1; i <= 50; i++)
         {
-            Id = Guid.Parse("55555555-5555-5555-5555-555555555555"),
-            Title = "Energy Engineer",
-            Description = "Renewable energy systems",
-            Location = "Durban",
-            CompanyId = company5.Id,
-            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-        };
+            jobs.Add(new JobListing
+            {
+                Id = Guid.Parse(
+                    $"00000000-0000-0000-0000-{i.ToString("D12")}"
+                ),
 
-        modelBuilder.Entity<JobListing>().HasData(job1, job2, job3, job4, job5);
+                Title = titles[(i - 1) % titles.Length],
+
+                Description =
+                    $"Description for {titles[(i - 1) % titles.Length]} position #{i}",
+
+                Location = locations[(i - 1) % locations.Length],
+
+                CompanyId = companies[(i - 1) % companies.Length],
+
+                PostedDate = new DateTime(
+                    2025,
+                    1,
+                    1,
+                    0,
+                    0,
+                    0,
+                    DateTimeKind.Utc
+                ).AddDays(i),
+
+                ClosingDate = new DateTime(
+                    2026,
+                    12,
+                    31,
+                    0,
+                    0,
+                    0,
+                    DateTimeKind.Utc
+                ),
+
+                IsOpen = true,
+
+                EmploymentType =
+                    employmentTypes[(i - 1) % employmentTypes.Length],
+
+                SalaryMin = 20000 + (i * 1000),
+
+                SalaryMax = 30000 + (i * 1000)
+            });
+        }
+
+        modelBuilder.Entity<JobListing>()
+            .HasData(jobs);
+
+        // =========================
+        // Applicants
+        // =========================
 
         var applicant1 = new Applicant
         {
@@ -136,40 +195,55 @@ public static class SeedData
             Email = "david@example.com"
         };
 
-        modelBuilder.Entity<Applicant>().HasData(applicant1, applicant2, applicant3, applicant4, applicant5);
+        modelBuilder.Entity<Applicant>().HasData(
+            applicant1,
+            applicant2,
+            applicant3,
+            applicant4,
+            applicant5
+        );
+
+        // =========================
+        // Applications
+        // =========================
 
         modelBuilder.Entity<Application>().HasData(
+
             new Application
             {
-                JobListingId = job1.Id,
+                JobListingId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
                 ApplicantId = applicant1.Id,
                 SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.Submitted
             },
+
             new Application
             {
-                JobListingId = job2.Id,
+                JobListingId = Guid.Parse("00000000-0000-0000-0000-000000000002"),
                 ApplicantId = applicant2.Id,
                 SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.UnderReview
             },
+
             new Application
             {
-                JobListingId = job3.Id,
+                JobListingId = Guid.Parse("00000000-0000-0000-0000-000000000003"),
                 ApplicantId = applicant3.Id,
                 SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.Shortlisted
             },
+
             new Application
             {
-                JobListingId = job4.Id,
+                JobListingId = Guid.Parse("00000000-0000-0000-0000-000000000004"),
                 ApplicantId = applicant4.Id,
                 SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.Rejected
             },
+
             new Application
             {
-                JobListingId = job5.Id,
+                JobListingId = Guid.Parse("00000000-0000-0000-0000-000000000005"),
                 ApplicantId = applicant5.Id,
                 SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                 Status = ApplicationStatus.Offered

@@ -1,11 +1,13 @@
 using CareerHub_API.DTOs;
 using CareerHub_API.Services;
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 
 namespace CareerHub_API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [ApiVersion(1)]
+    [Route("api/v{version:apiVersion}/[controller]")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;

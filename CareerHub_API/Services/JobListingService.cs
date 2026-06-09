@@ -15,12 +15,29 @@ namespace CareerHub_API.Services
             _jobRepo = jobRepo;
             _companyRepo = companyRepo;
         }
-
-        public async Task<List<JobResponse>> GetAllAsync()
+        /*
+        public async Task<PagedResponse<JobResponse>>
+                                      GetAllAsync(
+                                      int page,
+                                      int pageSize)
         {
-            return await _jobRepo.GetActiveListingsAsync();
+             return await _jobRepo
+             .GetActiveListingsPagedAsync(
+              page,
+              pageSize);
         }
-
+        */
+        public async Task<PagedResponse<JobResponse>>GetAllAsync(
+                                     JobListingFilterQuery query,
+                                                        int page,
+                                                    int pageSize)
+       {
+            return await _jobRepo
+            .GetActiveListingsPagedAsync(
+            query,
+            page,
+            pageSize);
+       }
         public async Task<JobResponse> GetByIdAsync(Guid id)
         {
             var job = await _jobRepo.GetListingDetailsAsync(id);
@@ -92,6 +109,11 @@ namespace CareerHub_API.Services
                 throw new Exception("Job not found");
 
             await _jobRepo.CloseAsync(id);
+        }
+        //Patch method in service layer
+        public async Task<JobResponse> PatchAsync(Guid id, UpdateJobListingRequest request)
+        {
+          return await _jobRepo.PatchAsync(id, request);
         }
     }
 }

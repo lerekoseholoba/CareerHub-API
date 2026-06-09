@@ -22,4 +22,10 @@ public class JobListing
     public DateTime ClosingDate { get; set; }
 
     public bool IsOpen { get; set; }
+
+    public string EmploymentType { get; set; } = string.Empty;
+
+    public decimal SalaryMin { get; set; }
+
+    public decimal SalaryMax { get; set; }
 }
