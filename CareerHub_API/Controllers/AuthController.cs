@@ -23,7 +23,7 @@ namespace CareerHub_API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            if (request.Password != request.ConfirmPassword)
+            if (request.Password != request.Password)
                 return BadRequest(new { message = "Passwords do not match" });
 
             var applicant = await _authService.RegisterApplicantAsync(request.Name, request.Email, request.Password);
