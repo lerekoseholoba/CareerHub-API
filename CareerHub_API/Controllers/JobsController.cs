@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using CareerHub_API.DTOs;
 using CareerHub_API.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +11,7 @@ namespace CareerHub_API.Controllers;
 
 [ApiController]
 [ApiVersion(1)]
+[Route("api/jobs")]
 [Route("api/v{version:apiVersion}/[controller]")]
 public class JobsController : ControllerBase
 {
@@ -18,31 +21,7 @@ public class JobsController : ControllerBase
     {
         _jobListingService = jobListingService;
     }
-    /*
-    [AllowAnonymous]
-    [HttpGet]
-    public async Task<IActionResult> GetAllJobs(
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 20)
-    {
-        if (page < 1)
-          page = 1;
 
-        if (pageSize < 1)
-          pageSize = 20;
-
-        var result =
-          await _jobListingService
-            .GetAllAsync(
-                page,
-                pageSize);
-
-          Response.Headers["X-Total-Count"] =
-          result.TotalCount.ToString();
-
-        return Ok(result);
-   }
-   */
     [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> GetAllJobs(
@@ -55,17 +34,14 @@ public class JobsController : ControllerBase
        [FromQuery] string? dir = null,
        [FromQuery] int page = 1,
        [FromQuery] int pageSize = 20)
-   {
+    {
         if (page < 1)
-        return BadRequest(
-            "Page must be greater than 0.");
+            return BadRequest("Page must be greater than 0.");
 
         if (pageSize < 1)
-        return BadRequest(
-            "PageSize must be greater than 0.");
+            return BadRequest("PageSize must be greater than 0.");
 
-        var filter =
-        new JobListingFilterQuery
+        var filter = new JobListingFilterQuery
         {
             Location = location,
             EmploymentType = employmentType,
@@ -76,74 +52,98 @@ public class JobsController : ControllerBase
             Dir = dir
         };
 
-        var result =
-        await _jobListingService
-            .GetAllAsync(
-                filter,
-                page,
-                pageSize);
+        var result = await _jobListingService.GetAllAsync(
+            filter,
+            page,
+            pageSize);
+
+        Response.Headers["X-Total-Count"] =
+            result.TotalCount.ToString();
 
         return Ok(result);
     }
+
     [AllowAnonymous]
-[EnableRateLimiting("search")]
-[HttpGet("search")]
-public async Task<IActionResult> SearchJobs(
-    [FromQuery] string? location,
-    [FromQuery] string? employmentType,
-    [FromQuery] decimal? salaryMin,
-    [FromQuery] decimal? salaryMax,
-    [FromQuery] Guid? companyId,
-    [FromQuery] string sort = "postedAt",
-    [FromQuery] string? dir = null,
-    [FromQuery] int page = 1,
-    [FromQuery] int pageSize = 20)
-{
-    var filter = new JobListingFilterQuery
+    [EnableRateLimiting("search")]
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchJobs(
+        [FromQuery] string? location,
+        [FromQuery] string? employmentType,
+        [FromQuery] decimal? salaryMin,
+        [FromQuery] decimal? salaryMax,
+        [FromQuery] Guid? companyId,
+        [FromQuery] string sort = "postedAt",
+        [FromQuery] string? dir = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
-        Location = location,
-        EmploymentType = employmentType,
-        SalaryMin = salaryMin,
-        SalaryMax = salaryMax,
-        CompanyId = companyId,
-        Sort = sort,
-        Dir = dir
-    };
+        var filter = new JobListingFilterQuery
+        {
+            Location = location,
+            EmploymentType = employmentType,
+            SalaryMin = salaryMin,
+            SalaryMax = salaryMax,
+            CompanyId = companyId,
+            Sort = sort,
+            Dir = dir
+        };
 
-    var result = await _jobListingService.GetAllAsync(
-        filter,
-        page,
-        pageSize);
+        var result = await _jobListingService.GetAllAsync(
+            filter,
+            page,
+            pageSize);
 
-    return Ok(result);
-}
+        Response.Headers["X-Total-Count"] =
+            result.TotalCount.ToString();
+
+        return Ok(result);
+    }
+
     [AllowAnonymous]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetJobById(Guid id)
     {
         var job = await _jobListingService.GetByIdAsync(id);
+
+        var etag = GenerateETag(job);
+
+        var clientETag =
+            Request.Headers.IfNoneMatch.FirstOrDefault();
+
+        if (!string.IsNullOrEmpty(clientETag)
+            && clientETag == etag)
+        {
+            return StatusCode(StatusCodes.Status304NotModified);
+        }
+
+        Response.Headers.ETag = etag;
+
         return Ok(job);
     }
 
     [Authorize(Roles = "Employer")]
     [EnableRateLimiting("post-listing")]
     [HttpPost]
-    public async Task<IActionResult> CreateJob([FromBody] CreateJobRequest request)
+    public async Task<IActionResult> CreateJob(
+        [FromBody] CreateJobRequest request)
     {
         var job = await _jobListingService.CreateAsync(request);
 
         return CreatedAtAction(
             nameof(GetJobById),
             new { id = job.Id },
-            job
-        );
+            job);
     }
 
     [Authorize(Roles = "Employer")]
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdateJob(Guid id, [FromBody] UpdateJobRequest request)
+    public async Task<IActionResult> UpdateJob(
+        Guid id,
+        [FromBody] UpdateJobRequest request)
     {
-        var job = await _jobListingService.UpdateAsync(id, request);
+        var job =
+            await _jobListingService.UpdateAsync(id, request);
+
         return Ok(job);
     }
 
@@ -152,10 +152,32 @@ public async Task<IActionResult> SearchJobs(
     public async Task<IActionResult> DeleteJob(Guid id)
     {
         await _jobListingService.CloseAsync(id);
+
         return NoContent();
     }
+
     [Authorize(Roles = "Employer")]
     [HttpPatch("{id:guid}")]
-    public async Task<IActionResult> PatchJob(Guid id,[FromBody] UpdateJobListingRequest request)
-    => Ok(await _jobListingService.PatchAsync(id, request));
+    public async Task<IActionResult> PatchJob(
+        Guid id,
+        [FromBody] UpdateJobListingRequest request)
+    {
+        var result =
+            await _jobListingService.PatchAsync(id, request);
+
+        return Ok(result);
+    }
+
+    private static string GenerateETag(JobResponse job)
+    {
+        var content =
+            $"{job.Id}-{job.Title}-{job.Description}-{job.Company}-{job.Location}-{job.PostedAt:O}-{job.SalaryMin}-{job.ApplicationCount}";
+
+        using var sha = SHA256.Create();
+
+        var hash = sha.ComputeHash(
+            Encoding.UTF8.GetBytes(content));
+
+        return $"\"{Convert.ToBase64String(hash)}\"";
+    }
 }
