@@ -45,8 +45,33 @@ public class CareerHubDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValue(true);
 
+            entity.Property(x => x.SalaryMin)
+                .IsRequired();
+
+            entity.Property(x => x.SalaryMax)
+                .IsRequired();
+
+            // =====================
+            // CHECK CONSTRAINTS
+            // =====================
+            entity.HasCheckConstraint(
+                "CK_JobListing_SalaryRange",
+                "\"SalaryMax\" >= \"SalaryMin\""
+            );
+
+            entity.HasCheckConstraint(
+                "CK_JobListing_ClosingDate",
+                "\"ClosingDate\" >= \"PostedDate\""
+            );
+
+            // =====================
+            // Indexes
+            // =====================
             entity.HasIndex(x => x.Title);
 
+            // =====================
+            // Relationships
+            // =====================
             entity.HasOne(x => x.Company)
                 .WithMany(c => c.JobListings)
                 .HasForeignKey(x => x.CompanyId)
@@ -106,6 +131,12 @@ public class CareerHubDbContext : DbContext
             entity.Property(a => a.Status)
                 .IsRequired();
 
+            entity.Property(a => a.ResumeUrl)
+                .HasDefaultValue(string.Empty);
+
+            entity.Property(a => a.CoverLetter)
+                .HasDefaultValue(string.Empty);
+
             entity.HasOne(a => a.JobListing)
                 .WithMany(j => j.Applications)
                 .HasForeignKey(a => a.JobListingId)
@@ -116,6 +147,10 @@ public class CareerHubDbContext : DbContext
                 .HasForeignKey(a => a.ApplicantId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
-    SeedData.Seed(modelBuilder);
+
+        // =====================
+        // Seed initial data
+        // =====================
+        SeedData.Seed(modelBuilder);
     }
 }
