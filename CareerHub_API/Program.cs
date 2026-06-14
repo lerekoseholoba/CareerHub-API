@@ -11,7 +11,9 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Asp.Versioning;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -185,6 +187,21 @@ builder.Services.AddRateLimiter(options =>
             limiterOptions.QueueLimit = 0;
         });
 });
+//Response Compression
+ builder.Services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+        options.Providers.Add<BrotliCompressionProvider>();
+        options.Providers.Add<GzipCompressionProvider>();
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes
+            .Append("application/json");
+    });
+//Database health checks
+ builder.Services.AddHealthChecks()
+        .AddDbContextCheck<CareerHubDbContext>(
+            name: "database",
+            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+            tags: ["ready"]);
 
 // ----------------------
 // DbContext
@@ -217,6 +234,8 @@ var app = builder.Build();
 // ----------------------
 app.UseSerilogRequestLogging();
 
+app.UseResponseCompression();
+
 app.UseCors("Frontend");
 
 app.UseRateLimiter();
@@ -243,6 +262,16 @@ if (app.Environment.IsDevelopment())
 // ----------------------
 app.MapControllers()
    .RequireRateLimiting("global");
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+    {
+        Predicate = _ => false
+    });
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("ready")
+    });
 
 // ----------------------
 // Run
