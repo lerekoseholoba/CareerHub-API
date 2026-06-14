@@ -182,12 +182,22 @@ builder.Services.AddRateLimiter(options =>
 // ----------------------
 // DbContext
 // ----------------------
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContext<CareerHubDbContext>(options =>
 {
-    options.UseSqlite(
-            builder.Configuration.GetConnectionString("DefaultConnection"))
-        .EnableSensitiveDataLogging()
-        .LogTo(Console.WriteLine, LogLevel.Information);
+    if (connectionString!.Contains("Host="))
+    {
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        options.UseSqlite(connectionString);
+    }
+
+    options.EnableSensitiveDataLogging()
+           .LogTo(Console.WriteLine, LogLevel.Information);
 });
 
 // ----------------------

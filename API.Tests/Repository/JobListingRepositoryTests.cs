@@ -1,12 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using CareerHub_API.Data;
 using CareerHub_API.Models;
+using CareerHub_API.DTOs;
 using CareerHub_API.Repositories;
 using Microsoft.EntityFrameworkCore;
-using Xunit;
+using API.Tests.Repository;
 
 namespace API.Tests.Repository;
 
@@ -21,6 +19,14 @@ public class JobListingRepositoryTests
     }
 
     // =========================
+    // DB RESET HELPER
+    // =========================
+    private async Task ResetDbAsync()
+    {
+        await _fixture.ResetAsync();
+    }
+
+    // =========================
     // DbContext Factory
     // =========================
     private CareerHubDbContext CreateContext()
@@ -30,8 +36,6 @@ public class JobListingRepositoryTests
             .Options;
 
         var context = new CareerHubDbContext(options);
-
-        context.Database.Migrate();
 
         return context;
     }
@@ -59,7 +63,7 @@ public class JobListingRepositoryTests
             Company = new Company
             {
                 Id = Guid.NewGuid(),
-                Name = "Test Company"
+                Name = $"Test Company {Guid.NewGuid()}" // prevents unique constraint issues
             }
         };
     }
@@ -70,6 +74,8 @@ public class JobListingRepositoryTests
     [Fact]
     public async Task GetActiveListingsPagedAsync_Page1_ReturnsCorrectCount()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
         var repo = new JobListingRepository(context);
 
@@ -97,16 +103,14 @@ public class JobListingRepositoryTests
     [Fact]
     public async Task GetActiveListingsPagedAsync_Page2_ReturnsDifferentRows()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
         var repo = new JobListingRepository(context);
 
-        var ids = new List<Guid>();
-
         for (int i = 0; i < 6; i++)
         {
-            var job = CreateJob();
-            context.JobListings.Add(job);
-            ids.Add(job.Id);
+            context.JobListings.Add(CreateJob());
         }
 
         await context.SaveChangesAsync();
@@ -133,6 +137,8 @@ public class JobListingRepositoryTests
     [Fact]
     public async Task GetActiveListingsPagedAsync_ResultsAreOrderedByPostedAtDescending()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
         var repo = new JobListingRepository(context);
 
@@ -153,7 +159,7 @@ public class JobListingRepositoryTests
                 Company = new Company
                 {
                     Id = Guid.NewGuid(),
-                    Name = "Company"
+                    Name = $"Company {Guid.NewGuid()}"
                 }
             });
         }
@@ -174,11 +180,13 @@ public class JobListingRepositoryTests
     }
 
     // =========================================================
-    // 4. Excludes expired (closed) listings
+    // 4. Excludes expired listings
     // =========================================================
     [Fact]
     public async Task GetActiveListingsPagedAsync_ExcludesExpiredListings()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
         var repo = new JobListingRepository(context);
 
@@ -204,6 +212,8 @@ public class JobListingRepositoryTests
     [Fact]
     public async Task CheckConstraint_RejectsSalaryMaxLessThanSalaryMin()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
 
         context.JobListings.Add(new JobListing
@@ -214,14 +224,14 @@ public class JobListingRepositoryTests
             Location = "Remote",
             EmploymentType = "Full-time",
             SalaryMin = 100000,
-            SalaryMax = 50000, // invalid
+            SalaryMax = 50000,
             PostedDate = DateTime.UtcNow,
             ClosingDate = DateTime.UtcNow.AddDays(10),
             IsOpen = true,
             Company = new Company
             {
                 Id = Guid.NewGuid(),
-                Name = "Company"
+                Name = $"Company {Guid.NewGuid()}"
             }
         });
 
@@ -235,6 +245,8 @@ public class JobListingRepositoryTests
     [Fact]
     public async Task CheckConstraint_RejectsClosingDateBeforePostedDate()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
 
         context.JobListings.Add(new JobListing
@@ -247,12 +259,12 @@ public class JobListingRepositoryTests
             SalaryMin = 50000,
             SalaryMax = 100000,
             PostedDate = DateTime.UtcNow,
-            ClosingDate = DateTime.UtcNow.AddDays(-5), // invalid
+            ClosingDate = DateTime.UtcNow.AddDays(-5),
             IsOpen = true,
             Company = new Company
             {
                 Id = Guid.NewGuid(),
-                Name = "Company"
+                Name = $"Company {Guid.NewGuid()}"
             }
         });
 
@@ -260,10 +272,14 @@ public class JobListingRepositoryTests
             () => context.SaveChangesAsync());
     }
 
-    
+    // =========================================================
+    // 7. HasAppliedAsync - TRUE case
+    // =========================================================
     [Fact]
     public async Task HasAppliedAsync_WhenApplicationExists_ReturnsTrue()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
 
         var applicant = new Applicant
@@ -290,25 +306,35 @@ public class JobListingRepositoryTests
         await context.SaveChangesAsync();
 
         var exists = await context.Applications
-            .AnyAsync(a => a.JobListingId == job.Id && a.ApplicantId == applicant.Id);
+            .AnyAsync(a => a.JobListingId == job.Id &&
+                          a.ApplicantId == applicant.Id);
 
         Assert.True(exists);
     }
 
+    // =========================================================
+    // 8. HasAppliedAsync - FALSE case (FIXED)
+    // =========================================================
     [Fact]
     public async Task HasAppliedAsync_WhenNoApplicationExists_ReturnsFalse()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
 
-        var result = await context.Applications.AnyAsync();
+        var exists = await context.Applications.AnyAsync();
 
-        Assert.False(result);
+        Assert.False(exists);
     }
 
-   
+    // =========================================================
+    // 9. Full text search - positive
+    // =========================================================
     [Fact]
     public async Task FullTextSearchAsync_ReturnsStemmedMatches()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
         var repo = new JobListingRepository(context);
 
@@ -327,14 +353,14 @@ public class JobListingRepositoryTests
             Company = new Company
             {
                 Id = Guid.NewGuid(),
-                Name = "Company"
+                Name = $"Company {Guid.NewGuid()}"
             }
         });
 
         await context.SaveChangesAsync();
 
         var result = await repo.GetActiveListingsPagedAsync(
-            new JobListingFilterQuery { Sort = "title" },
+            new JobListingFilterQuery(),
             1,
             10);
 
@@ -342,9 +368,14 @@ public class JobListingRepositoryTests
             x.Title.Contains("Software"));
     }
 
+    // =========================================================
+    // 10. Full text search - negative sanity check
+    // =========================================================
     [Fact]
     public async Task FullTextSearchAsync_DoesNotReturnNonMatchingListings()
     {
+        await ResetDbAsync();
+
         using var context = CreateContext();
         var repo = new JobListingRepository(context);
 

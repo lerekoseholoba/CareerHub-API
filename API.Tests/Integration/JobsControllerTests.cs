@@ -1,22 +1,17 @@
+using System.Net;
+using System.Text;
+using System.Net.Http.Json;
 using CareerHub_API.DTOs;
+using CareerHub_API.Models;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Newtonsoft.Json;
-using System.Net.Http.Headers;
-using System.Text;
-using Xunit;
 
-namespace API.Tests.Integration;
+namespace CareerHub_API.Tests.Integration;
 
-public class JobsControllerTests
+public class JobsControllerTests(WebApplicationFactoryFixture factory)
     : IClassFixture<WebApplicationFactoryFixture>
 {
-    private readonly HttpClient _client;
-
-    public JobsControllerTests(WebApplicationFactoryFixture factory)
-    {
-        _client = factory.CreateClient();
-    }
-
+    private readonly HttpClient _client = factory.CreateClient();
     [Fact]
     public async Task GetJobs_ReturnsOk()
     {

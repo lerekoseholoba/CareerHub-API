@@ -122,6 +122,8 @@ namespace API.Tests.Unit.Services
             };
 
             _jobRepo.GetEntityByIdAsync(existingJob.Id).Returns(existingJob);
+            _jobRepo.GetListingDetailsAsync(existingJob.Id)
+                                                    .Returns(new JobResponse());
 
             var request = new UpdateJobListingRequest
             {
