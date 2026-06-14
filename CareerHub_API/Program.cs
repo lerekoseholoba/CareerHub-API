@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using CareerHub_API.Data;
 using CareerHub_API.Middleware;
 using CareerHub_API.Infrastructure;
+using CareerHub_API.Infrastructure.OpenApi;
 using Serilog;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -53,12 +54,18 @@ builder.Services
 builder.Services.AddAuthServices();
 builder.Services.AddJobServices();
 builder.Services.AddApplicationServices();
+builder.Services.AddScoped<CareerHubDocumentTransformer>();
+builder.Services.AddOpenApi(options=>
+  {
+    options.AddDocumentTransformer<CareerHubDocumentTransformer>();
+  } 
+);
 
 // ----------------------
 // Problem Details / Exceptions
 // ----------------------
 builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
+//builder.Services.AddOpenApi();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 // ----------------------
