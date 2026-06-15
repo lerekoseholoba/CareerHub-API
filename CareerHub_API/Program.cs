@@ -1,6 +1,7 @@
 using Scalar.AspNetCore;
 using System.Text.Json.Serialization;
 using CareerHub_API.Data;
+using CareerHub_API.Services;
 using CareerHub_API.Middleware;
 using CareerHub_API.Infrastructure;
 using CareerHub_API.Infrastructure.OpenApi;
@@ -213,7 +214,8 @@ builder.Services.AddRateLimiter(options =>
             name: "database",
             failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
             tags: ["ready"]);
-builder.Services.AddHostedService<BookingArchiveService>();
+// Register Background Service
+builder.Services.AddHostedService<JobListingArchiveService>();
 // ----------------------
 // DbContext
 // ----------------------
