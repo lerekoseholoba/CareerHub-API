@@ -26,6 +26,11 @@ public class JobsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet]
+    [EndpointSummary("List all jobs")]
+    [EndpointDescription(
+        "Returns a paginated list of jobs ordered by start time. " +
+        "The X-Total-Count response header contains the total number of Jobs " +
+        "sorted by the Salary,Title and Date in which the job was posted at, with a default page size of 20")]
     public async Task<IActionResult> GetAllJobs(
        [FromQuery] string? location,
        [FromQuery] string? employmentType,
@@ -73,6 +78,12 @@ public class JobsController : ControllerBase
     [AllowAnonymous]
     [EnableRateLimiting("search")]
     [HttpGet("search")]
+    [EndpointSummary("Search jobs")]
+    [EndpointDescription(
+        "Search for jobs using a full-text query. " +
+        "Supports filtering by location, employment type, salary range, and company. " +
+        "When Q is provided, PostgreSQL full-text search is used with GIN index support. " +
+        "Rate limited to 30 requests per minute")]
     public async Task<IActionResult> SearchJobs(
         [FromQuery] string? location,
         [FromQuery] string? employmentType,
@@ -113,6 +124,11 @@ public class JobsController : ControllerBase
 
     [AllowAnonymous]
     [HttpGet("{id:guid}")]
+        [EndpointSummary("Get job details")]
+        [EndpointDescription(
+            "Returns detailed information about a specific job listing by its ID. " +
+            "Includes ETag support for caching. " +
+            "If the client's ETag matches the current version, a 304 Not Modified is returned.")]
     public async Task<IActionResult> GetJobById(Guid id)
     {
         try

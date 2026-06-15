@@ -20,8 +20,8 @@ namespace CareerHub_API.Controllers
             _applicationService = applicationService;
         }
 
-        [EnableRateLimiting("apply")]
-        [HttpPost]
+       [EnableRateLimiting("apply")]
+       [HttpPost]
         public async Task<IActionResult> ApplyToJob([FromBody] CreateApplicationRequest request)
         {
             if (!ModelState.IsValid)
@@ -54,6 +54,8 @@ namespace CareerHub_API.Controllers
         }
         [Authorize(Roles = "Recruiter")]
         [HttpPatch("{applicantId:guid}/{jobId:guid}/status")]
+        [EndpointSummary("Update application status")]
+        [EndpointDescription("Allows a recruiter to update the status of a job application.")]
         public async Task<IActionResult> UpdateApplicationStatus(
         Guid applicantId,
         Guid jobId,
