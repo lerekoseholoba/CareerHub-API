@@ -1212,6 +1212,296 @@ This reduces:
 
 and improves overall system stability under sustained load.
 
+# Assignment 3.2: CareerHub API — Testing & CI/CD Pipelines
+
+## Objective
+
+This assignment replaces manual verification of the CareerHub API with a fully automated test suite. The system is validated across three layers:
+
+- Unit tests (service logic in isolation)
+- Integration tests (HTTP pipeline via WebApplicationFactory)
+- Repository tests (real PostgreSQL via TestContainers)
+
+A GitHub Actions CI pipeline enforces that no code is merged into main unless all tests pass.
+
+---
+
+## Part 1 — Written Decisions
+
+### 1. Unit Test vs Integration Test Classification
+
+**Salary range validation in `JobListingService.CreateAsync`** — Unit test (NSubstitute mock)
+
+- This is pure business logic validation.
+- Does not require database or HTTP pipeline.
+- Integration test would be overkill because persistence is not required to verify rule enforcement.
+
+**`[Authorize]` attribute on `POST /api/v1/jobs`** — Integration test (WebApplicationFactory)
+
+- Authorization depends on ASP.NET middleware pipeline.
+- Unit tests cannot verify middleware execution.
+- Only integration tests can confirm HTTP 401 responses.
+
+**`SalaryMax > SalaryMin` check constraint (database)** — Repository integration test (TestContainers)
+
+- Enforced at database level.
+- EF Core in-memory provider cannot execute real SQL constraints.
+- Requires PostgreSQL engine behavior.
+
+**`api-supported-versions` response header** — Integration test (WebApplicationFactory)
+
+- Header is added in HTTP response pipeline.
+- Cannot be tested in isolation because it depends on middleware execution order.
+
+**`HasAppliedAsync` compiled query correctness** — Repository integration test (TestContainers)
+
+- Compiled LINQ is translated into SQL once and reused.
+- Only real PostgreSQL verifies correctness of translation.
+- In-memory provider bypasses SQL translation entirely.
+
+---
+
+### 2. Why EF Core In-Memory Provider is Insufficient
+
+**Limitation 1: No SQL constraint enforcement**
+
+- Cannot enforce `CHECK (SalaryMax >= SalaryMin)`
+- In-memory provider does not execute relational constraints
+
+**Limitation 2: No query translation to SQL**
+
+- `HasAppliedAsync` compiled queries are LINQ expressions
+- In-memory provider executes LINQ in memory, not as SQL translation
+- Bugs in translation layer are not detected
+
+**Limitation 3: No PostgreSQL-specific features**
+
+No support for:
+
+- Full-text search (`tsvector`)
+- Index behavior (GIN indexes)
+- Case-insensitive collation behavior differences
+
+---
+
+### 3. Test Isolation
+
+A test is isolated when:
+
+- It does not depend on external state
+- It does not depend on execution order
+- It produces deterministic results
+
+**Problem when isolation is violated:**
+
+If two repository tests share the same database rows or table state, then:
+
+- Test order affects results
+- One test may delete or modify data needed by another
+- Flaky tests appear randomly
+
+**Solution:**
+
+- TestContainers spins up a fresh PostgreSQL instance
+- Each test seeds its own data
+- No shared state between tests
+
+---
+
+### 4. Purpose of CI Pipeline
+
+**Local testing:**
+
+- Run manually by developer
+- Environment differs between machines
+- Easy to forget running full suite
+
+**CI pipeline:**
+
+- Runs on every PR and push
+- Ensures consistency across all developers
+
+**CI catches:**
+
+- Merge conflicts between branches
+- Missing migrations
+- Broken tests not reproduced locally
+- Environment-specific failures (Linux vs Windows differences)
+
+---
+
+## Part 2 — Unit Tests (Service Layer)
+
+### Scope
+
+Tests business logic in isolation using:
+
+- NSubstitute mocks
+- No database
+- No HTTP pipeline
+
+**Covered behaviours:**
+
+- Salary validation
+- Expiry validation
+- Repository interaction control (`AddAsync` calls)
+- Patch validation branching logic
+
+---
+
+## Part 3 — Application Status Transitions
+
+### Scope
+
+Validates finite state machine logic.
+
+**Allowed transitions:**
+
+- Submitted → UnderReview
+- UnderReview → Shortlisted / Rejected
+- Shortlisted → Offered / Rejected
+
+**Invalid transitions:**
+
+- Rejected → Submitted
+- Offered → Any state
+
+**Key principle:** Prevents illegal state mutation at service level before persistence.
+
+---
+
+## Part 4 — Integration Tests (WebApplicationFactory)
+
+### Scope
+
+Full HTTP pipeline testing:
+
+- Controllers
+- Middleware
+- Authentication
+- Headers
+- Versioning
+- ETags
+
+**Key validations:**
+
+- 401 Unauthorized without token
+- Pagination envelope correctness
+- API version headers
+- ETag caching (304 Not Modified)
+
+---
+
+## Part 5 — TestContainers Repository Tests
+
+### Scope
+
+Real PostgreSQL database validation:
+
+- Migrations applied via `Database.Migrate()`
+- Constraints enforced at DB level
+- Real query execution
+
+**Key tests:**
+
+- Paging correctness
+- Ordering by `PostedDate`
+- Exclusion of inactive listings
+- Check constraints: `SalaryMax >= SalaryMin`, `ClosingDate >= PostedDate`
+- Compiled query correctness (`HasAppliedAsync`)
+- Full-text search correctness
+
+---
+
+## Part 6 — GitHub Actions CI/CD Pipeline
+
+**Workflow file:** `.github/workflows/ci.yml`
+
+**Trigger:**
+
+- Push to `main`
+- Pull requests targeting `main`
+
+**Job:** Build and Test CareerHub API
+
+**Steps:**
+
+1. `actions/checkout@v4`
+2. `actions/setup-dotnet@v4` (10.0.x)
+3. `dotnet restore`
+4. `dotnet build --no-restore --configuration Release`
+5. `dotnet test --no-build --configuration Release --verbosity normal`
+
+### Branch Protection Configuration
+
+**Required status check:** Build and Test CareerHub API
+
+**Why "Require branches to be up to date" matters:**
+
+- Ensures PR is tested against latest `main`
+- Prevents merging stale passing builds that break after merge
+
+**"Do not allow bypassing":**
+
+- Prevents direct pushes to `main`
+- Enforces CI as mandatory gatekeeper
+
+---
+
+## Part 7 — Test Coverage Analysis
+
+**What unit tests do NOT cover:**
+
+- Database constraints (CHECK constraints require PostgreSQL)
+- HTTP middleware pipeline (authorization, headers)
+- Query translation correctness
+
+**What integration tests do NOT cover:**
+
+- Real database engine behavior
+- SQL-level constraints and indexing behavior
+- Compiled query execution correctness
+
+**What repository (TestContainers) tests do NOT cover:**
+
+- Controller routing and middleware
+- Authentication and authorization
+- HTTP-level behavior
+
+---
+
+## Test Pyramid Summary
+
+- **Most tests:** Unit tests (fast validation of business logic)
+- **Medium:** Integration tests (HTTP correctness)
+- **Fewest:** Repository tests (slow but highest fidelity)
+
+---
+
+## CI/CD Importance
+
+CI ensures:
+
+- All layers work together
+- No developer can break `main` independently
+- Merge conflicts are validated early
+
+---
+
+## Naming Convention
+
+**Examples:**
+
+- `CreateAsync_WhenValid_CallsAddAsyncExactlyOnce`
+- `GetJobs_ResponseIncludesETagHeader`
+- `HasAppliedAsync_WhenNoApplicationExists_ReturnsFalse`
+
+**Why naming matters:**
+
+- Describes intent clearly
+- Prevents ambiguity in failure reports
+- Removes need to read test body to understand purpose
+
 
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)

@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using CareerHub_API.Data;
 using CareerHub_API.Middleware;
 using CareerHub_API.Infrastructure;
+using CareerHub_API.Infrastructure.OpenApi;
 using Serilog;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -10,7 +11,9 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Asp.Versioning;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -53,12 +56,18 @@ builder.Services
 builder.Services.AddAuthServices();
 builder.Services.AddJobServices();
 builder.Services.AddApplicationServices();
+builder.Services.AddScoped<CareerHubDocumentTransformer>();
+builder.Services.AddOpenApi(options=>
+  {
+    options.AddDocumentTransformer<CareerHubDocumentTransformer>();
+  } 
+);
 
 // ----------------------
 // Problem Details / Exceptions
 // ----------------------
 builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
+//builder.Services.AddOpenApi();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 // ----------------------
@@ -178,16 +187,41 @@ builder.Services.AddRateLimiter(options =>
             limiterOptions.QueueLimit = 0;
         });
 });
+//Response Compression
+ builder.Services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+        options.Providers.Add<BrotliCompressionProvider>();
+        options.Providers.Add<GzipCompressionProvider>();
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes
+            .Append("application/json");
+    });
+//Database health checks
+ builder.Services.AddHealthChecks()
+        .AddDbContextCheck<CareerHubDbContext>(
+            name: "database",
+            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+            tags: ["ready"]);
 
 // ----------------------
 // DbContext
 // ----------------------
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContext<CareerHubDbContext>(options =>
 {
-    options.UseSqlite(
-            builder.Configuration.GetConnectionString("DefaultConnection"))
-        .EnableSensitiveDataLogging()
-        .LogTo(Console.WriteLine, LogLevel.Information);
+    if (connectionString!.Contains("Host="))
+    {
+        options.UseNpgsql(connectionString);
+    }
+    else
+    {
+        options.UseSqlite(connectionString);
+    }
+
+    options.EnableSensitiveDataLogging()
+           .LogTo(Console.WriteLine, LogLevel.Information);
 });
 
 // ----------------------
@@ -199,6 +233,8 @@ var app = builder.Build();
 // Middleware Pipeline
 // ----------------------
 app.UseSerilogRequestLogging();
+
+app.UseResponseCompression();
 
 app.UseCors("Frontend");
 
@@ -227,7 +263,20 @@ if (app.Environment.IsDevelopment())
 app.MapControllers()
    .RequireRateLimiting("global");
 
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+    {
+        Predicate = _ => false
+    });
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("ready")
+    });
+
 // ----------------------
 // Run
 // ----------------------
 app.Run();
+public partial class Program
+{
+}

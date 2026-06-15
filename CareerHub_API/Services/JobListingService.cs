@@ -46,31 +46,38 @@ namespace CareerHub_API.Services
         }
 
         public async Task<JobResponse> CreateAsync(CreateJobRequest request)
-        {
-            // Rule: company must exist
-            if (!await _companyRepo.ExistsAsync(request.CompanyId))
-                throw new CompanyNotFoundException(request.CompanyId);
+       {
+          if (!await _companyRepo.ExistsAsync(request.CompanyId))
+          throw new CompanyNotFoundException(request.CompanyId);
 
-            // Rule: closing date must be in the future
-            if (request.ClosingDate <= DateTime.UtcNow)
-                throw new InvalidClosingDateException();
+          if (request.ClosingDate <= DateTime.UtcNow)
+         throw new InvalidClosingDateException();
+
+          if (request.SalaryMin.HasValue &&
+         request.SalaryMax.HasValue &&
+         request.SalaryMax <= request.SalaryMin)
+          {
+             throw new InvalidSalaryException();
+          }
 
             var listing = new JobListing
-            {
-                Id = Guid.NewGuid(),
-                Title = request.Title,
-                Description = request.Description,
-                CompanyId = request.CompanyId,
-                ClosingDate = request.ClosingDate,
-                Location = request.Location,
-                PostedDate = DateTime.UtcNow,
-                IsOpen = true
-            };
+          {
+           Id = Guid.NewGuid(),
+           Title = request.Title,
+           Description = request.Description,
+           CompanyId = request.CompanyId,
+           ClosingDate = request.ClosingDate,
+           Location = request.Location,
+           PostedDate = DateTime.UtcNow,
+           IsOpen = true,
+           SalaryMin = request.SalaryMin ?? 0,
+           SalaryMax = request.SalaryMax ?? 0
+         };
 
-            await _jobRepo.AddAsync(listing);
+         await _jobRepo.AddAsync(listing);
 
-            return await _jobRepo.GetListingDetailsAsync(listing.Id)
-                   ?? throw new Exception("Failed to create job");
+           return await _jobRepo.GetListingDetailsAsync(listing.Id)
+           ?? throw new Exception("Failed to create job");
         }
 
         public async Task<JobResponse> UpdateAsync(Guid id, UpdateJobRequest request)
@@ -111,9 +118,52 @@ namespace CareerHub_API.Services
             await _jobRepo.CloseAsync(id);
         }
         //Patch method in service layer
-        public async Task<JobResponse> PatchAsync(Guid id, UpdateJobListingRequest request)
-        {
-          return await _jobRepo.PatchAsync(id, request);
-        }
+       public async Task<JobResponse> PatchAsync(Guid id, UpdateJobListingRequest request)
+      {
+             var job = await _jobRepo.GetEntityByIdAsync(id);
+
+            if (job == null)
+               throw new JobNotFoundException(id);
+
+           if (request.Title != null)
+                 job.Title = request.Title;
+
+           if (request.Description != null)
+                job.Description = request.Description;
+
+           if (request.Location != null)
+                job.Location = request.Location;
+
+           if (request.EmploymentType != null)
+              job.EmploymentType = request.EmploymentType;
+
+           var newMin = request.SalaryMin ?? job.SalaryMin;
+           var newMax = request.SalaryMax ?? job.SalaryMax;
+
+          if ((request.SalaryMin.HasValue || request.SalaryMax.HasValue)
+             && newMin > newMax)
+           {
+              throw new InvalidSalaryException();
+           }
+
+         if (request.SalaryMin.HasValue)
+            job.SalaryMin = request.SalaryMin.Value;
+
+         if (request.SalaryMax.HasValue)
+            job.SalaryMax = request.SalaryMax.Value;
+
+         if (request.ExpiresAt.HasValue)
+           {
+              if (request.ExpiresAt.Value <= DateTime.UtcNow)
+              throw new InvalidClosingDateException();
+
+              job.ClosingDate = request.ExpiresAt.Value;
+           }
+
+          await _jobRepo.UpdateAsync(job);
+
+          return await _jobRepo.GetListingDetailsAsync(id)
+           ?? throw new JobNotFoundException(id);
+       }
     }
 }

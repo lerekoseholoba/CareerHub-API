@@ -4,6 +4,7 @@ using CareerHub_API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -15,27 +16,31 @@ namespace CareerHub_API.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "10.0.8")
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("CareerHub_API.Models.Applicant", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(255)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -43,141 +48,61 @@ namespace CareerHub_API.Migrations
                         .IsUnique();
 
                     b.ToTable("applicants", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("aaaaaaaa-1111-1111-1111-111111111111"),
-                            Email = "john@example.com",
-                            Name = "John Doe",
-                            PasswordHash = ""
-                        },
-                        new
-                        {
-                            Id = new Guid("bbbbbbbb-2222-2222-2222-222222222222"),
-                            Email = "sarah@example.com",
-                            Name = "Sarah Lee",
-                            PasswordHash = ""
-                        },
-                        new
-                        {
-                            Id = new Guid("cccccccc-3333-3333-3333-333333333333"),
-                            Email = "michael@example.com",
-                            Name = "Michael Smith",
-                            PasswordHash = ""
-                        },
-                        new
-                        {
-                            Id = new Guid("dddddddd-4444-4444-4444-444444444444"),
-                            Email = "aisha@example.com",
-                            Name = "Aisha Khan",
-                            PasswordHash = ""
-                        },
-                        new
-                        {
-                            Id = new Guid("eeeeeeee-5555-5555-5555-eeeeeeeeeeee"),
-                            Email = "david@example.com",
-                            Name = "David Brown",
-                            PasswordHash = ""
-                        });
                 });
 
             modelBuilder.Entity("CareerHub_API.Models.Application", b =>
                 {
                     b.Property<Guid>("JobListingId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("ApplicantId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("CoverLetter")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("");
 
                     b.Property<string>("ResumeUrl")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("");
 
                     b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("SubmittedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("JobListingId", "ApplicantId");
 
                     b.HasIndex("ApplicantId");
 
                     b.ToTable("applications", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            JobListingId = new Guid("00000000-0000-0000-0000-000000000001"),
-                            ApplicantId = new Guid("aaaaaaaa-1111-1111-1111-111111111111"),
-                            CoverLetter = "",
-                            ResumeUrl = "",
-                            Status = 0,
-                            SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            JobListingId = new Guid("00000000-0000-0000-0000-000000000002"),
-                            ApplicantId = new Guid("bbbbbbbb-2222-2222-2222-222222222222"),
-                            CoverLetter = "",
-                            ResumeUrl = "",
-                            Status = 1,
-                            SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            JobListingId = new Guid("00000000-0000-0000-0000-000000000003"),
-                            ApplicantId = new Guid("cccccccc-3333-3333-3333-333333333333"),
-                            CoverLetter = "",
-                            ResumeUrl = "",
-                            Status = 2,
-                            SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            JobListingId = new Guid("00000000-0000-0000-0000-000000000004"),
-                            ApplicantId = new Guid("dddddddd-4444-4444-4444-444444444444"),
-                            CoverLetter = "",
-                            ResumeUrl = "",
-                            Status = 4,
-                            SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        },
-                        new
-                        {
-                            JobListingId = new Guid("00000000-0000-0000-0000-000000000005"),
-                            ApplicantId = new Guid("eeeeeeee-5555-5555-5555-eeeeeeeeeeee"),
-                            CoverLetter = "",
-                            ResumeUrl = "",
-                            Status = 3,
-                            SubmittedAt = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        });
                 });
 
             modelBuilder.Entity("CareerHub_API.Models.Company", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Industry")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Website")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
 
@@ -200,27 +125,6 @@ namespace CareerHub_API.Migrations
                             Industry = "Finance",
                             Name = "FinCore",
                             Website = "https://fincore.com"
-                        },
-                        new
-                        {
-                            Id = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Industry = "Healthcare",
-                            Name = "HealthPlus",
-                            Website = "https://healthplus.com"
-                        },
-                        new
-                        {
-                            Id = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Industry = "Education",
-                            Name = "EduSmart",
-                            Website = "https://edusmart.com"
-                        },
-                        new
-                        {
-                            Id = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Industry = "Energy",
-                            Name = "GreenEnergy",
-                            Website = "https://greenenergy.com"
                         });
                 });
 
@@ -228,46 +132,46 @@ namespace CareerHub_API.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("ClosingDate")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("CompanyId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("EmploymentType")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsOpen")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
                     b.Property<string>("Location")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime>("PostedDate")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("SalaryMax")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("numeric");
 
                     b.Property<decimal>("SalaryMin")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("numeric");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
@@ -275,708 +179,27 @@ namespace CareerHub_API.Migrations
 
                     b.HasIndex("Title");
 
-                    b.ToTable("job_listings", (string)null);
+                    b.ToTable("job_listings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_JobListing_ClosingDate", "\"ClosingDate\" >= \"PostedDate\"");
+
+                            t.HasCheckConstraint("CK_JobListing_SalaryRange", "\"SalaryMax\" >= \"SalaryMin\"");
+                        });
 
                     b.HasData(
                         new
                         {
                             Id = new Guid("00000000-0000-0000-0000-000000000001"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
+                            ClosingDate = new DateTime(2025, 2, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Backend Developer position #1",
+                            Description = "Seed job",
                             EmploymentType = "Full-Time",
                             IsOpen = true,
                             Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 1, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 31000m,
-                            SalaryMin = 21000m,
-                            Title = "Backend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000002"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Frontend Developer position #2",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 1, 3, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 32000m,
-                            SalaryMin = 22000m,
-                            Title = "Frontend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000003"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Full Stack Developer position #3",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 1, 4, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 33000m,
-                            SalaryMin = 23000m,
-                            Title = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000004"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Cloud Engineer position #4",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 1, 5, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 34000m,
-                            SalaryMin = 24000m,
-                            Title = "Cloud Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000005"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for DevOps Engineer position #5",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 1, 6, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 35000m,
-                            SalaryMin = 25000m,
-                            Title = "DevOps Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000006"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Software Engineer position #6",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 1, 7, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 36000m,
-                            SalaryMin = 26000m,
-                            Title = "Software Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000007"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Data Analyst position #7",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 1, 8, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 37000m,
-                            SalaryMin = 27000m,
-                            Title = "Data Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000008"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Business Analyst position #8",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 1, 9, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 38000m,
-                            SalaryMin = 28000m,
-                            Title = "Business Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000009"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Financial Analyst position #9",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 1, 10, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 39000m,
-                            SalaryMin = 29000m,
-                            Title = "Financial Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000010"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for Project Manager position #10",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 1, 11, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 40000m,
-                            SalaryMin = 30000m,
-                            Title = "Project Manager"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000011"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Backend Developer position #11",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 1, 12, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 41000m,
-                            SalaryMin = 31000m,
-                            Title = "Backend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000012"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Frontend Developer position #12",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 1, 13, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 42000m,
-                            SalaryMin = 32000m,
-                            Title = "Frontend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000013"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Full Stack Developer position #13",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 1, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 43000m,
-                            SalaryMin = 33000m,
-                            Title = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000014"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Cloud Engineer position #14",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 1, 15, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 44000m,
-                            SalaryMin = 34000m,
-                            Title = "Cloud Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000015"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for DevOps Engineer position #15",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 1, 16, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 45000m,
-                            SalaryMin = 35000m,
-                            Title = "DevOps Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000016"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Software Engineer position #16",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 1, 17, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 46000m,
-                            SalaryMin = 36000m,
-                            Title = "Software Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000017"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Data Analyst position #17",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 1, 18, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 47000m,
-                            SalaryMin = 37000m,
-                            Title = "Data Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000018"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Business Analyst position #18",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 1, 19, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 48000m,
-                            SalaryMin = 38000m,
-                            Title = "Business Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000019"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Financial Analyst position #19",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 1, 20, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 49000m,
-                            SalaryMin = 39000m,
-                            Title = "Financial Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000020"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for Project Manager position #20",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 1, 21, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 50000m,
-                            SalaryMin = 40000m,
-                            Title = "Project Manager"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000021"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Backend Developer position #21",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 1, 22, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 51000m,
-                            SalaryMin = 41000m,
-                            Title = "Backend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000022"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Frontend Developer position #22",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 1, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 52000m,
-                            SalaryMin = 42000m,
-                            Title = "Frontend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000023"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Full Stack Developer position #23",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 1, 24, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 53000m,
-                            SalaryMin = 43000m,
-                            Title = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000024"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Cloud Engineer position #24",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 1, 25, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 54000m,
-                            SalaryMin = 44000m,
-                            Title = "Cloud Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000025"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for DevOps Engineer position #25",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 1, 26, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 55000m,
-                            SalaryMin = 45000m,
-                            Title = "DevOps Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000026"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Software Engineer position #26",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 1, 27, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 56000m,
-                            SalaryMin = 46000m,
-                            Title = "Software Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000027"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Data Analyst position #27",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 1, 28, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 57000m,
-                            SalaryMin = 47000m,
-                            Title = "Data Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000028"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Business Analyst position #28",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 1, 29, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 58000m,
-                            SalaryMin = 48000m,
-                            Title = "Business Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000029"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Financial Analyst position #29",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 1, 30, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 59000m,
-                            SalaryMin = 49000m,
-                            Title = "Financial Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000030"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for Project Manager position #30",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 1, 31, 0, 0, 0, 0, DateTimeKind.Utc),
+                            PostedDate = new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             SalaryMax = 60000m,
-                            SalaryMin = 50000m,
-                            Title = "Project Manager"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000031"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Backend Developer position #31",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 2, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 61000m,
-                            SalaryMin = 51000m,
+                            SalaryMin = 30000m,
                             Title = "Backend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000032"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Frontend Developer position #32",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 2, 2, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 62000m,
-                            SalaryMin = 52000m,
-                            Title = "Frontend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000033"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Full Stack Developer position #33",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 2, 3, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 63000m,
-                            SalaryMin = 53000m,
-                            Title = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000034"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Cloud Engineer position #34",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 2, 4, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 64000m,
-                            SalaryMin = 54000m,
-                            Title = "Cloud Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000035"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for DevOps Engineer position #35",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 2, 5, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 65000m,
-                            SalaryMin = 55000m,
-                            Title = "DevOps Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000036"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Software Engineer position #36",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 2, 6, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 66000m,
-                            SalaryMin = 56000m,
-                            Title = "Software Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000037"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Data Analyst position #37",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 2, 7, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 67000m,
-                            SalaryMin = 57000m,
-                            Title = "Data Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000038"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Business Analyst position #38",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 2, 8, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 68000m,
-                            SalaryMin = 58000m,
-                            Title = "Business Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000039"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Financial Analyst position #39",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 2, 9, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 69000m,
-                            SalaryMin = 59000m,
-                            Title = "Financial Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000040"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for Project Manager position #40",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 2, 10, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 70000m,
-                            SalaryMin = 60000m,
-                            Title = "Project Manager"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000041"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Backend Developer position #41",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 2, 11, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 71000m,
-                            SalaryMin = 61000m,
-                            Title = "Backend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000042"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Frontend Developer position #42",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 2, 12, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 72000m,
-                            SalaryMin = 62000m,
-                            Title = "Frontend Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000043"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Full Stack Developer position #43",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 2, 13, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 73000m,
-                            SalaryMin = 63000m,
-                            Title = "Full Stack Developer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000044"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Cloud Engineer position #44",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 2, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 74000m,
-                            SalaryMin = 64000m,
-                            Title = "Cloud Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000045"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for DevOps Engineer position #45",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 2, 15, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 75000m,
-                            SalaryMin = 65000m,
-                            Title = "DevOps Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000046"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-                            Description = "Description for Software Engineer position #46",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Cape Town",
-                            PostedDate = new DateTime(2025, 2, 16, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 76000m,
-                            SalaryMin = 66000m,
-                            Title = "Software Engineer"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000047"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-                            Description = "Description for Data Analyst position #47",
-                            EmploymentType = "Contract",
-                            IsOpen = true,
-                            Location = "Johannesburg",
-                            PostedDate = new DateTime(2025, 2, 17, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 77000m,
-                            SalaryMin = 67000m,
-                            Title = "Data Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000048"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
-                            Description = "Description for Business Analyst position #48",
-                            EmploymentType = "Internship",
-                            IsOpen = true,
-                            Location = "Pretoria",
-                            PostedDate = new DateTime(2025, 2, 18, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 78000m,
-                            SalaryMin = 68000m,
-                            Title = "Business Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000049"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"),
-                            Description = "Description for Financial Analyst position #49",
-                            EmploymentType = "Full-Time",
-                            IsOpen = true,
-                            Location = "Durban",
-                            PostedDate = new DateTime(2025, 2, 19, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 79000m,
-                            SalaryMin = 69000m,
-                            Title = "Financial Analyst"
-                        },
-                        new
-                        {
-                            Id = new Guid("00000000-0000-0000-0000-000000000050"),
-                            ClosingDate = new DateTime(2026, 12, 31, 0, 0, 0, 0, DateTimeKind.Utc),
-                            CompanyId = new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"),
-                            Description = "Description for Project Manager position #50",
-                            EmploymentType = "Part-Time",
-                            IsOpen = true,
-                            Location = "Remote",
-                            PostedDate = new DateTime(2025, 2, 20, 0, 0, 0, 0, DateTimeKind.Utc),
-                            SalaryMax = 80000m,
-                            SalaryMin = 70000m,
-                            Title = "Project Manager"
                         });
                 });
 

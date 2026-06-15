@@ -8,60 +8,119 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CareerHub_API.Migrations
 {
     /// <inheritdoc />
-    public partial class ExpandJobSeedData : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("aaaaaaaa-1111-1111-1111-111111111111"), new Guid("11111111-1111-1111-1111-111111111111") });
+            migrationBuilder.CreateTable(
+                name: "applicants",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Email = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    PasswordHash = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_applicants", x => x.Id);
+                });
 
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("bbbbbbbb-2222-2222-2222-222222222222"), new Guid("22222222-2222-2222-2222-222222222222") });
+            migrationBuilder.CreateTable(
+                name: "companies",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Website = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Industry = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_companies", x => x.Id);
+                });
 
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("cccccccc-3333-3333-3333-333333333333"), new Guid("33333333-3333-3333-3333-333333333333") });
+            migrationBuilder.CreateTable(
+                name: "job_listings",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    CompanyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
+                    Location = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    PostedDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ClosingDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsOpen = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
+                    EmploymentType = table.Column<string>(type: "text", nullable: false),
+                    SalaryMin = table.Column<decimal>(type: "numeric", nullable: false),
+                    SalaryMax = table.Column<decimal>(type: "numeric", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_job_listings", x => x.Id);
+                    table.CheckConstraint("CK_JobListing_ClosingDate", "\"ClosingDate\" >= \"PostedDate\"");
+                    table.CheckConstraint("CK_JobListing_SalaryRange", "\"SalaryMax\" >= \"SalaryMin\"");
+                    table.ForeignKey(
+                        name: "FK_job_listings_companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "companies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
 
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("dddddddd-4444-4444-4444-444444444444"), new Guid("44444444-4444-4444-4444-444444444444") });
+            migrationBuilder.CreateTable(
+                name: "applications",
+                columns: table => new
+                {
+                    JobListingId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ApplicantId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SubmittedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    ResumeUrl = table.Column<string>(type: "text", nullable: false, defaultValue: ""),
+                    CoverLetter = table.Column<string>(type: "text", nullable: false, defaultValue: "")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_applications", x => new { x.JobListingId, x.ApplicantId });
+                    table.ForeignKey(
+                        name: "FK_applications_applicants_ApplicantId",
+                        column: x => x.ApplicantId,
+                        principalTable: "applicants",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_applications_job_listings_JobListingId",
+                        column: x => x.JobListingId,
+                        principalTable: "job_listings",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
 
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("eeeeeeee-5555-5555-5555-eeeeeeeeeeee"), new Guid("55555555-5555-5555-5555-555555555555") });
+            migrationBuilder.InsertData(
+                table: "applicants",
+                columns: new[] { "Id", "Email", "Name", "PasswordHash" },
+                values: new object[,]
+                {
+                    { new Guid("aaaaaaaa-1111-1111-1111-111111111111"), "john@example.com", "John Doe", "" },
+                    { new Guid("bbbbbbbb-2222-2222-2222-222222222222"), "sarah@example.com", "Sarah Lee", "" },
+                    { new Guid("cccccccc-3333-3333-3333-333333333333"), "michael@example.com", "Michael Smith", "" },
+                    { new Guid("dddddddd-4444-4444-4444-444444444444"), "aisha@example.com", "Aisha Khan", "" },
+                    { new Guid("eeeeeeee-5555-5555-5555-eeeeeeeeeeee"), "david@example.com", "David Brown", "" }
+                });
 
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("11111111-1111-1111-1111-111111111111"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("22222222-2222-2222-2222-222222222222"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("33333333-3333-3333-3333-333333333333"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("44444444-4444-4444-4444-444444444444"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("55555555-5555-5555-5555-555555555555"));
+            migrationBuilder.InsertData(
+                table: "companies",
+                columns: new[] { "Id", "Industry", "Name", "Website" },
+                values: new object[,]
+                {
+                    { new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "Software", "TechNova", "https://technova.com" },
+                    { new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), "Finance", "FinCore", "https://fincore.com" },
+                    { new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"), "Healthcare", "HealthPlus", "https://healthplus.com" },
+                    { new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"), "Education", "EduSmart", "https://edusmart.com" },
+                    { new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"), "Energy", "GreenEnergy", "https://greenenergy.com" }
+                });
 
             migrationBuilder.InsertData(
                 table: "job_listings",
@@ -131,309 +190,49 @@ namespace CareerHub_API.Migrations
                     { new Guid("dddddddd-4444-4444-4444-444444444444"), new Guid("00000000-0000-0000-0000-000000000004"), "", "", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
                     { new Guid("eeeeeeee-5555-5555-5555-eeeeeeeeeeee"), new Guid("00000000-0000-0000-0000-000000000005"), "", "", 3, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_applicants_Email",
+                table: "applicants",
+                column: "Email",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_applications_ApplicantId",
+                table: "applications",
+                column: "ApplicantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_companies_Name",
+                table: "companies",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_job_listings_CompanyId",
+                table: "job_listings",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_job_listings_Title",
+                table: "job_listings",
+                column: "Title");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("aaaaaaaa-1111-1111-1111-111111111111"), new Guid("00000000-0000-0000-0000-000000000001") });
+            migrationBuilder.DropTable(
+                name: "applications");
 
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("bbbbbbbb-2222-2222-2222-222222222222"), new Guid("00000000-0000-0000-0000-000000000002") });
+            migrationBuilder.DropTable(
+                name: "applicants");
 
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("cccccccc-3333-3333-3333-333333333333"), new Guid("00000000-0000-0000-0000-000000000003") });
+            migrationBuilder.DropTable(
+                name: "job_listings");
 
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("dddddddd-4444-4444-4444-444444444444"), new Guid("00000000-0000-0000-0000-000000000004") });
-
-            migrationBuilder.DeleteData(
-                table: "applications",
-                keyColumns: new[] { "ApplicantId", "JobListingId" },
-                keyValues: new object[] { new Guid("eeeeeeee-5555-5555-5555-eeeeeeeeeeee"), new Guid("00000000-0000-0000-0000-000000000005") });
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000006"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000007"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000008"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000009"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000010"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000011"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000012"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000013"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000014"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000015"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000016"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000017"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000018"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000019"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000020"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000021"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000022"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000023"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000024"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000025"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000026"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000027"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000028"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000029"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000030"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000031"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000032"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000033"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000034"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000035"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000036"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000037"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000038"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000039"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000040"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000041"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000042"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000043"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000044"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000045"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000046"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000047"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000048"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000049"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000050"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000001"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000002"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000003"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000004"));
-
-            migrationBuilder.DeleteData(
-                table: "job_listings",
-                keyColumn: "Id",
-                keyValue: new Guid("00000000-0000-0000-0000-000000000005"));
-
-            migrationBuilder.InsertData(
-                table: "job_listings",
-                columns: new[] { "Id", "ClosingDate", "CompanyId", "Description", "EmploymentType", "Location", "PostedDate", "SalaryMax", "SalaryMin", "Title" },
-                values: new object[,]
-                {
-                    { new Guid("11111111-1111-1111-1111-111111111111"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "Build APIs with .NET", "", "Remote", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 0m, 0m, "Backend Developer" },
-                    { new Guid("22222222-2222-2222-2222-222222222222"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"), "Analyse financial data", "", "Johannesburg", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 0m, 0m, "Financial Analyst" },
-                    { new Guid("33333333-3333-3333-3333-333333333333"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"), "Patient care and support", "", "Cape Town", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 0m, 0m, "Nurse Specialist" },
-                    { new Guid("44444444-4444-4444-4444-444444444444"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new Guid("dddddddd-dddd-dddd-dddd-dddddddddddd"), "Teach computer science", "", "Pretoria", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 0m, 0m, "Lecturer" },
-                    { new Guid("55555555-5555-5555-5555-555555555555"), new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new Guid("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"), "Renewable energy systems", "", "Durban", new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc), 0m, 0m, "Energy Engineer" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "applications",
-                columns: new[] { "ApplicantId", "JobListingId", "CoverLetter", "ResumeUrl", "Status", "SubmittedAt" },
-                values: new object[,]
-                {
-                    { new Guid("aaaaaaaa-1111-1111-1111-111111111111"), new Guid("11111111-1111-1111-1111-111111111111"), "", "", 0, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("bbbbbbbb-2222-2222-2222-222222222222"), new Guid("22222222-2222-2222-2222-222222222222"), "", "", 1, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("cccccccc-3333-3333-3333-333333333333"), new Guid("33333333-3333-3333-3333-333333333333"), "", "", 2, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("dddddddd-4444-4444-4444-444444444444"), new Guid("44444444-4444-4444-4444-444444444444"), "", "", 4, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) },
-                    { new Guid("eeeeeeee-5555-5555-5555-eeeeeeeeeeee"), new Guid("55555555-5555-5555-5555-555555555555"), "", "", 3, new DateTime(2025, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) }
-                });
+            migrationBuilder.DropTable(
+                name: "companies");
         }
     }
 }
