@@ -69,6 +69,17 @@ builder.Services.AddOpenApi(options=>
 builder.Services.AddProblemDetails();
 //builder.Services.AddOpenApi();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+/*
+public class BookingArchiveService(IServiceScopeFactory scopeFactory, ...) : BackgroundService
+{
+    private async Task RunAsync(CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
+        // ... use db, then scope is disposed
+    }
+}
+*/
 
 // ----------------------
 // CORS
@@ -202,7 +213,7 @@ builder.Services.AddRateLimiter(options =>
             name: "database",
             failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
             tags: ["ready"]);
-
+builder.Services.AddHostedService<BookingArchiveService>();
 // ----------------------
 // DbContext
 // ----------------------
