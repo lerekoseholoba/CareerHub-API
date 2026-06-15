@@ -215,7 +215,7 @@ builder.Services.AddRateLimiter(options =>
             failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
             tags: ["ready"]);
 // Register Background Service
-//builder.Services.AddHostedService<JobListingArchiveService>();
+builder.Services.AddHostedService<JobListingExpiryService>();
 // ----------------------
 // DbContext
 // ----------------------
