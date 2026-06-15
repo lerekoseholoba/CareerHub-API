@@ -215,7 +215,7 @@ builder.Services.AddRateLimiter(options =>
             failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
             tags: ["ready"]);
 // Register Background Service
-builder.Services.AddHostedService<JobListingArchiveService>();
+//builder.Services.AddHostedService<JobListingArchiveService>();
 // ----------------------
 // DbContext
 // ----------------------
@@ -260,14 +260,15 @@ app.UseAuthorization();
 app.UseExceptionHandler();
 
 app.UseStatusCodePages();
-
+app.MapOpenApi();
+app.MapScalarApiReference();
 // ----------------------
 // Development Only
 // ----------------------
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+   //app.MapOpenApi();
+   // app.MapScalarApiReference();
 }
 
 // ----------------------
