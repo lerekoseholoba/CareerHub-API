@@ -89,23 +89,7 @@ export default function Home() {
     setSelectedId((prev) => (prev === id ? null : id));
   };
 
-  /*
-    EFFECT 1: RESTORE SELECTION ON MOUNT
-
-    Runs ONLY once when the component first loads.
-
-    Dependency array: []
-    Reason:
-    - We only want to read sessionStorage once on mount.
-    - If we included dependencies, we could overwrite user selection changes.
-    - This ensures we restore previous session state safely.
-
-    Behaviour:
-    - Reads "selectedJobId" from sessionStorage
-    - Checks if the ID still exists in current jobs list
-    - Restores selection ONLY if valid
-    - Ignores stale IDs silently (as required)
-  */
+  /* Restore selection on mount */
   useEffect(() => {
     const storedId = sessionStorage.getItem("selectedJobId");
 
@@ -113,26 +97,10 @@ export default function Home() {
 
     const exists = jobs.some((job) => job.id === storedId);
 
-    if (exists) {
-      setSelectedId(storedId);
-    }
+    if (exists) setSelectedId(storedId);
   }, []);
 
-  /*
-    EFFECT 2: SYNC SELECTION TO SESSION STORAGE
-
-    Runs every time selectedId changes.
-
-    Dependency array: [selectedId]
-    Reason:
-    - We only want to sync storage when user changes selection.
-    - Including other dependencies (like jobs) would cause unnecessary writes.
-    - This keeps sessionStorage aligned with current UI state.
-
-    Behaviour:
-    - If a job is selected → save ID to sessionStorage
-    - If selection is cleared → remove key entirely
-  */
+  /* Sync selection */
   useEffect(() => {
     if (selectedId) {
       sessionStorage.setItem("selectedJobId", selectedId);
@@ -142,25 +110,26 @@ export default function Home() {
   }, [selectedId]);
 
   return (
-    <main className="p-8 space-y-6">
-      {/* Header (unchanged) */}
+    <main className="p-8 space-y-6 bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold mb-6">
         ConferenceHub
       </h1>
 
-      {/* Summary panel (must fully unmount when null) */}
       {selectedJob && (
-        <div className="rounded-lg border p-4 bg-white shadow-sm">
+        <div className="
+          rounded-lg border p-4 shadow-sm
+          bg-white text-gray-900 border-gray-200
+          dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700
+        ">
           <h2 className="text-lg font-semibold">
             {selectedJob.title}
           </h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {selectedJob.company}
           </p>
         </div>
       )}
 
-      {/* Job list */}
       <JobList
         jobs={jobs}
         selectedId={selectedId}
