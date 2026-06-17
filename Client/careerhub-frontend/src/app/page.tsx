@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { JobListing } from "./types";
 import JobList from "./components/JobList";
 
@@ -82,32 +82,54 @@ export default function Home() {
     },
   ];
 
-  const selectedJob = jobs.find((job) => job.id === selectedId) || null;
+  const selectedJob =
+    jobs.find((job) => job.id === selectedId) || null;
 
   const handleSelect = (id: string) => {
     setSelectedId((prev) => (prev === id ? null : id));
   };
 
+  /* Restore selection on mount */
+  useEffect(() => {
+    const storedId = sessionStorage.getItem("selectedJobId");
+
+    if (!storedId) return;
+
+    const exists = jobs.some((job) => job.id === storedId);
+
+    if (exists) setSelectedId(storedId);
+  }, []);
+
+  /* Sync selection */
+  useEffect(() => {
+    if (selectedId) {
+      sessionStorage.setItem("selectedJobId", selectedId);
+    } else {
+      sessionStorage.removeItem("selectedJobId");
+    }
+  }, [selectedId]);
+
   return (
-    <main className="p-8 space-y-6">
-      {/* Header (unchanged) */}
+    <main className="p-8 space-y-6 bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen">
       <h1 className="text-3xl font-bold mb-6">
         ConferenceHub
       </h1>
 
-      {/* Summary panel (must fully unmount when null) */}
       {selectedJob && (
-        <div className="rounded-lg border p-4 bg-white shadow-sm">
+        <div className="
+          rounded-lg border p-4 shadow-sm
+          bg-white text-gray-900 border-gray-200
+          dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700
+        ">
           <h2 className="text-lg font-semibold">
             {selectedJob.title}
           </h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             {selectedJob.company}
           </p>
         </div>
       )}
 
-      {/* Job list */}
       <JobList
         jobs={jobs}
         selectedId={selectedId}
