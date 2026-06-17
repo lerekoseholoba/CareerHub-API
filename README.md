@@ -1502,6 +1502,164 @@ CI ensures:
 - Prevents ambiguity in failure reports
 - Removes need to read test body to understand purpose
 
+# Assignment-1.1-FrontEnd
+
+---
+
+# SECTION A
+
+## 1. Lifting State Up — The Architectural Argument
+
+If JobList owns selectedId internally using useState, but Home also needs to display the selected job in a summary panel, the architecture breaks due to state isolation.
+
+### What breaks:
+- Home cannot access selected job directly
+- Summary panel cannot display selected job title/details
+- Leads to duplicated state or prop drilling
+- Causes split source-of-truth issues
+
+### Why nearest common ancestor rule works:
+State should live in the closest shared parent of all components needing it.
+
+In this case:
+- JobCard triggers selection
+- JobList renders list
+- Home displays summary
+
+Therefore Home owns the state.
+
+This works because React enforces:
+- unidirectional data flow
+- single source of truth
+- predictable updates
+
+### Data flow:
+1. JobCard clicked
+2. onClick(job.id) triggered
+3. JobList forwards event
+4. Home updates selectedId
+5. React re-renders Home
+6. Summary panel updates
+
+---
+
+## 2. Re-render Cycle
+
+### Claim:
+All JobCards re-render when setSelectedId is called
+
+### Verdict:
+True for render execution, not necessarily DOM updates
+
+### What React does:
+- schedules state update
+- re-renders Home
+- re-renders JobList and all JobCards
+- runs reconciliation
+- updates only changed DOM nodes
+
+### Why JobCard re-renders:
+Parent re-render triggers child execution even if props unchanged
+
+### React 19 improvement:
+- compiler-level memoisation
+- reduced unnecessary renders
+- better preservation of stable references
+
+### Re-render vs DOM update:
+- Re-render = function execution
+- DOM update = actual UI mutation
+They are not the same.
+
+---
+
+## 3. Union Types vs string
+
+### Scenario 1: API adds "Freelance"
+With string:
+- no error
+- runtime UI bugs
+
+With union type:
+- compile-time error
+- prevents deployment
+
+### Scenario 2: filtering typo
+"Fulltime" vs "FullTime"
+
+With string:
+- silent logic failure
+
+With union:
+- TypeScript error caught early
+
+---
+
+## 4. && Rendering Trap
+
+Problem:
+job.applicantCount && <p>{job.applicantCount}</p>
+
+If applicantCount = 0:
+React renders 0
+
+### Why:
+0 is falsy but still returned by && expression
+React renders numeric values
+
+### Fix:
+- job.applicantCount > 0 && <p>...</p>
+- ternary operator
+
+Preferred:
+job.applicantCount > 0 && <p>...</p>
+
+---
+
+# SECTION B
+
+## 1. Why static data first
+
+Static data removes API dependency and isolates frontend logic.
+
+A component is data-source agnostic when:
+- it depends only on data shape
+- not on where data comes from
+
+---
+
+## 2. Backend type contract mismatch
+
+Frontend JobListing mirrors backend JobListingResponse.cs
+
+If backend renames salaryMin → minimumSalary:
+
+Result:
+- frontend sees undefined values
+- UI breaks
+- filters/calculations fail
+
+Caught at:
+- runtime OR compile-time (if strict typing)
+
+---
+
+## 3. Component responsibility table
+
+| Component | Owns state | Receives props |
+|-----------|------------|----------------|
+| Home | selectedJobId, setSelectedJobId, jobs | none |
+| JobList | none | jobs, onSelectJob |
+| JobCard | none | job, onClick |
+
+---
+
+## 4. Build Gate
+
+Requirement:
+npm run build must pass with:
+- 0 TypeScript errors
+- 0 ESLint errors
 
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)
