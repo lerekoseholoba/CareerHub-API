@@ -1,4 +1,6 @@
-import type { JobListing, JobType } from "../types";
+import { cn } from "../lib/utils";
+import type { JobListing } from "../types";
+import JobStatusBadge from "./JobStatusBadge";
 
 interface JobCardProps {
   job: JobListing;
@@ -6,16 +8,8 @@ interface JobCardProps {
   onSelect: (id: string) => void;
 }
 
-const badgeStyles: Record<JobType, string> = {
-  FullTime: "bg-green-100 text-green-800",
-  PartTime: "bg-blue-100 text-blue-800",
-  Contract: "bg-orange-100 text-orange-800",
-  Internship: "bg-purple-100 text-purple-800",
-};
-
 function formatSalary(min: number, max: number): string {
   const formatter = new Intl.NumberFormat("en-ZA");
-
   return `R${formatter.format(min)} – R${formatter.format(max)} pm`;
 }
 
@@ -26,35 +20,18 @@ function getRelativeDate(postedDate: string): string {
   const diffMs = now.getTime() - posted.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays <= 0) {
-    return "Today";
-  }
-
-  if (diffDays === 1) {
-    return "1 day ago";
-  }
-
-  if (diffDays < 30) {
-    return `${diffDays} days ago`;
-  }
+  if (diffDays <= 0) return "Today";
+  if (diffDays === 1) return "1 day ago";
+  if (diffDays < 30) return `${diffDays} days ago`;
 
   const months = Math.floor(diffDays / 30);
 
-  if (months === 1) {
-    return "1 month ago";
-  }
-
-  if (months < 12) {
-    return `${months} months ago`;
-  }
+  if (months === 1) return "1 month ago";
+  if (months < 12) return `${months} months ago`;
 
   const years = Math.floor(months / 12);
 
-  if (years === 1) {
-    return "1 year ago";
-  }
-
-  return `${years} years ago`;
+  return years === 1 ? "1 year ago" : `${years} years ago`;
 }
 
 export default function JobCard({
@@ -65,42 +42,35 @@ export default function JobCard({
   return (
     <div
       onClick={() => onSelect(job.id)}
-      className={`cursor-pointer rounded-lg border p-4 transition-all ${
-        isSelected
-          ? "border-blue-600 bg-blue-50 shadow-md"
-          : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm"
-      }`}
+      className={cn(
+        "cursor-pointer rounded-lg border p-4 transition-all",
+        "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm",
+        "dark:bg-gray-900 dark:border-gray-700 dark:hover:border-gray-600",
+        isSelected &&
+          "border-blue-600 bg-blue-50 shadow-md dark:border-blue-400 dark:bg-blue-950 dark:shadow-lg",
+        !job.isOpen && "opacity-70"
+      )}
     >
       <div className="mb-3 flex items-start justify-between gap-2">
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           {job.title}
         </h2>
 
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-medium ${
-            badgeStyles[job.jobType]
-          }`}
-        >
-          {job.jobType}
-        </span>
+        <JobStatusBadge employmentType={job.jobType} />
       </div>
 
-      <p className="mb-3 text-sm text-gray-600">
+      <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
         {job.company} · {job.location}
       </p>
 
-      <p className="mb-3 font-medium text-gray-900">
+      <p className="mb-3 font-medium text-gray-900 dark:text-gray-100">
         {formatSalary(job.salaryMin, job.salaryMax)}
       </p>
 
-      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
         <span>{getRelativeDate(job.postedDate)}</span>
 
-        {!job.isOpen && (
-          <span className="rounded bg-red-100 px-2 py-1 font-medium text-red-700">
-            Closed
-          </span>
-        )}
+        <JobStatusBadge isActive={job.isOpen} />
 
         {job.applicantCount > 0 && (
           <span>
