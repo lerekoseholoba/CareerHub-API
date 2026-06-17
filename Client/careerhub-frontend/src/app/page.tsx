@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { JobListing } from "./types";
 import JobList from "./components/JobList";
 
@@ -82,11 +82,64 @@ export default function Home() {
     },
   ];
 
-  const selectedJob = jobs.find((job) => job.id === selectedId) || null;
+  const selectedJob =
+    jobs.find((job) => job.id === selectedId) || null;
 
   const handleSelect = (id: string) => {
     setSelectedId((prev) => (prev === id ? null : id));
   };
+
+  /*
+    EFFECT 1: RESTORE SELECTION ON MOUNT
+
+    Runs ONLY once when the component first loads.
+
+    Dependency array: []
+    Reason:
+    - We only want to read sessionStorage once on mount.
+    - If we included dependencies, we could overwrite user selection changes.
+    - This ensures we restore previous session state safely.
+
+    Behaviour:
+    - Reads "selectedJobId" from sessionStorage
+    - Checks if the ID still exists in current jobs list
+    - Restores selection ONLY if valid
+    - Ignores stale IDs silently (as required)
+  */
+  useEffect(() => {
+    const storedId = sessionStorage.getItem("selectedJobId");
+
+    if (!storedId) return;
+
+    const exists = jobs.some((job) => job.id === storedId);
+
+    if (exists) {
+      setSelectedId(storedId);
+    }
+  }, []);
+
+  /*
+    EFFECT 2: SYNC SELECTION TO SESSION STORAGE
+
+    Runs every time selectedId changes.
+
+    Dependency array: [selectedId]
+    Reason:
+    - We only want to sync storage when user changes selection.
+    - Including other dependencies (like jobs) would cause unnecessary writes.
+    - This keeps sessionStorage aligned with current UI state.
+
+    Behaviour:
+    - If a job is selected → save ID to sessionStorage
+    - If selection is cleared → remove key entirely
+  */
+  useEffect(() => {
+    if (selectedId) {
+      sessionStorage.setItem("selectedJobId", selectedId);
+    } else {
+      sessionStorage.removeItem("selectedJobId");
+    }
+  }, [selectedId]);
 
   return (
     <main className="p-8 space-y-6">
