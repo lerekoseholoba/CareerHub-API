@@ -1661,5 +1661,150 @@ npm run build must pass with:
 - 0 TypeScript errors
 - 0 ESLint errors
 
+# Assignment-1.2-Frontend
+
+## 1. The shadcn/ui ownership model
+
+This scenario cannot happen with shadcn/ui because the components are not installed as compiled dependencies from a remote package. Instead, shadcn/ui copies the component source code directly into your project under your local `components/ui` directory.
+
+This means:
+- You own the code after installation
+- There is no external runtime dependency for UI components
+- Updates do not automatically break your codebase
+
+When shadcn/ui releases an improved version of a component:
+- You manually re-run the CLI (e.g. `shadcn add button`)
+- It generates a new updated file
+- You then selectively adopt changes
+
+This gives full control and prevents breaking API changes like renaming `variant` to `intent`.
+
+---
+
+## 2. Why the cn utility exists
+
+A scenario where `tailwind-merge` behaves differently:
+
+In JobCard:
+
+```
+className="border border-gray-200 dark:border-gray-700"
+```
+
+If conditional logic later adds:
+
+```
+className="border-2 border-gray-300"
+```
+
+Without `tailwind-merge`:
+- Both `border` and `border-2` remain in the final string
+- CSS conflict resolution depends on order in stylesheet, not intention
+
+With `cn` (tailwind-merge):
+- It removes conflicting border utilities
+- Keeps only `border-2`
+
+This matters because Tailwind applies styles in generated CSS order, not runtime logic order, so string concatenation cannot reliably resolve conflicts.
+
+---
+
+## 3. Event handler vs useEffect
+
+The event handler approach fails in this scenario:
+
+- User closes tab
+- Opens app in a new tab
+- Previous selection still exists in sessionStorage
+
+Because:
+- The click handler never runs on page load
+- There is no restoration logic outside user interaction
+
+The useEffect approach solves this because:
+- It runs on mount automatically
+- It synchronizes UI state with persisted storage
+- It restores state even without user interaction
+
+This is critical for real users because apps must restore state on reload, not only on clicks.
+
+---
+
+## 4. Source of truth for dark mode
+
+- `isDark` in React state is only used to control UI rendering of the toggle button label
+- The true source of truth is `document.documentElement.classList.contains("dark")`
+
+If ThemeToggle unmounts:
+- The dark class remains on `<html>`
+- The UI stays in dark mode
+- When remounted, React state reinitializes, but it may briefly desync until useEffect runs again
+
+This shows that DOM state (html class) persists independently of React state.
+
+---
+
+## 5. Component extraction rationale (JobStatusBadge)
+
+JobStatusBadge is separated to satisfy the Single Responsibility Principle:
+- JobCard handles layout and composition
+- JobStatusBadge handles status rendering logic
+
+If employment type colours change:
+
+WITHOUT extraction:
+- Every JobCard instance must be updated manually
+- Logic is duplicated across components
+- High risk of inconsistency
+
+WITH extraction:
+- Only JobStatusBadge changes
+- All JobCards automatically reflect update
+- Centralized mapping ensures consistency
+
+---
+
+## 6. The cn utility (clsx + tailwind-merge)
+
+- `clsx` handles conditional class joining (true/false logic)
+- `tailwind-merge` resolves conflicting Tailwind utilities
+
+Failure mode prevented:
+
+Example:
+```
+"p-2 p-4"
+```
+
+Without tailwind-merge:
+- Both classes remain
+- Final padding depends on CSS order, not intent
+
+With tailwind-merge:
+- Only `p-4` remains
+- Ensures deterministic styling
+
+---
+
+## 7. Effect responsibilities table
+
+| Effect | Dependency array | Runs when |
+|------|------------------|-----------|
+| Restore from sessionStorage | [] | On mount only |
+| Sync to sessionStorage | [selectedId] | Whenever selection changes |
+
+If merged:
+- You would either:
+  - Overwrite restored state incorrectly on mount, or
+  - Miss updates when selectedId changes
+This breaks synchronization between UI and storage.
+
+---
+
+## 8. Build requirement
+
+N/A — build output depends on environment execution.
+
+
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)
