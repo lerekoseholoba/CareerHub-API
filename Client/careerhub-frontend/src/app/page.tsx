@@ -1,35 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+
 import type { JobListing } from "./types";
 import JobList from "./components/JobList";
+import { fetchJobs } from "./lib/api";
 
 export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Jobs will be loaded from the mock API (/api/jobs)
-  const [jobs, setJobs] = useState<JobListing[]>([]);
+  const {
+    data: jobs = [],
+    isLoading,
+  } = useQuery<JobListing[]>({
+    queryKey: ["jobs"],
 
-  /*
-  Seed data has been moved to:
-  src/app/api/jobs/route.ts
+    // TEMPORARY for testing the skeleton
+    //queryFn: () => new Promise(() => {}),
 
-  const jobs: JobListing[] = [
-    {
-      id: "a1",
-      title: "Frontend Developer",
-      company: "Capitec Bank",
-      location: "Cape Town",
-      jobType: "FullTime",
-      salaryMin: 35000,
-      salaryMax: 55000,
-      postedDate: new Date().toISOString(),
-      isOpen: true,
-      applicantCount: 12,
-    },
-    ...
-  ];
-  */
+    // Restore this before submitting:
+     queryFn: fetchJobs,
+  });
 
   const selectedJob =
     jobs.find((job) => job.id === selectedId) || null;
@@ -49,7 +41,7 @@ export default function Home() {
     if (exists) {
       setSelectedId(storedId);
     }
-  }, []);
+  }, [jobs]);
 
   /* Sync selection */
   useEffect(() => {
@@ -87,6 +79,7 @@ export default function Home() {
         jobs={jobs}
         selectedId={selectedId}
         onSelect={handleSelect}
+        isLoading={isLoading}
       />
     </main>
   );
