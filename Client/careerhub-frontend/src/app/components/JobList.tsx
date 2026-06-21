@@ -1,24 +1,17 @@
 import type { JobListing } from "../types";
 import JobCard from "./JobCard";
-import { JobListSkeleton } from "./JobCardSkeleton";
 
 interface JobListProps {
   jobs: JobListing[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  isLoading: boolean;
 }
 
 export default function JobList({
   jobs,
   selectedId,
   onSelect,
-  isLoading,
 }: JobListProps) {
-  if (isLoading) {
-    return <JobListSkeleton />;
-  }
-
   return (
     <div className="space-y-4">
       {/* Result count */}
