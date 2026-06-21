@@ -86,7 +86,7 @@ export default function Home() {
   return (
     <main className="min-h-screen space-y-6 bg-gray-50 p-8 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <h1 className="mb-6 text-3xl font-bold">
-        ConferenceHub
+        CareerHub Job Listings
       </h1>
 
       {selectedJob && (
