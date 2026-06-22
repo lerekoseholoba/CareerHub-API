@@ -1,17 +1,17 @@
 import type { JobListing } from "../types";
 import JobCard from "./JobCard";
 
-interface JobsGridProps {
+interface JobListProps {
   jobs: JobListing[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-export default function JobsGrid({
+export default function JobList({
   jobs,
   selectedId,
   onSelect,
-}: JobsGridProps) {
+}: JobListProps) {
   return (
     <div className="space-y-4">
       {/* Result count */}

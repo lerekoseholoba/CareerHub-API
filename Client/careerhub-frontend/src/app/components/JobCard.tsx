@@ -56,7 +56,7 @@ export default function JobCard({
           {job.title}
         </h2>
 
-        <JobStatusBadge employmentType={job.jobType} />
+        <JobStatusBadge employmentType={job.employmentType} />
       </div>
 
       <p className="mb-3 text-sm text-gray-600 dark:text-gray-400">
@@ -68,7 +68,7 @@ export default function JobCard({
       </p>
 
       <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-        <span>{getRelativeDate(job.postedDate)}</span>
+        <span>{getRelativeDate(job.postedAt)}</span>
 
         <JobStatusBadge isActive={job.isOpen} />
 

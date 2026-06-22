@@ -3,6 +3,7 @@ using System;
 using CareerHub_API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareerHub_API.Migrations
 {
     [DbContext(typeof(CareerHubDbContext))]
-    partial class CareerHubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260622121732_UpdateSeedAndJobResponse")]
+    partial class UpdateSeedAndJobResponse
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -159,8 +162,9 @@ namespace CareerHub_API.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<int>("EmploymentType")
-                        .HasColumnType("integer");
+                    b.Property<string>("EmploymentType")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsOpen")
                         .ValueGeneratedOnAdd()
@@ -206,7 +210,7 @@ namespace CareerHub_API.Migrations
                             ClosingDate = new DateTime(2027, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
                             Description = "ASP.NET Core backend development role",
-                            EmploymentType = 0,
+                            EmploymentType = "Full-Time",
                             IsOpen = true,
                             Location = "Cape Town",
                             PostedDate = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -220,7 +224,7 @@ namespace CareerHub_API.Migrations
                             ClosingDate = new DateTime(2027, 1, 5, 0, 0, 0, 0, DateTimeKind.Utc),
                             CompanyId = new Guid("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
                             Description = "React developer role",
-                            EmploymentType = 0,
+                            EmploymentType = "Full-Time",
                             IsOpen = true,
                             Location = "Johannesburg",
                             PostedDate = new DateTime(2026, 1, 5, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -234,7 +238,7 @@ namespace CareerHub_API.Migrations
                             ClosingDate = new DateTime(2027, 1, 10, 0, 0, 0, 0, DateTimeKind.Utc),
                             CompanyId = new Guid("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
                             Description = "Finance data analysis role",
-                            EmploymentType = 2,
+                            EmploymentType = "Contract",
                             IsOpen = true,
                             Location = "Pretoria",
                             PostedDate = new DateTime(2026, 1, 10, 0, 0, 0, 0, DateTimeKind.Utc),
@@ -248,7 +252,7 @@ namespace CareerHub_API.Migrations
                             ClosingDate = new DateTime(2027, 1, 15, 0, 0, 0, 0, DateTimeKind.Utc),
                             CompanyId = new Guid("cccccccc-cccc-cccc-cccc-cccccccccccc"),
                             Description = "Build healthcare technology solutions",
-                            EmploymentType = 0,
+                            EmploymentType = "Full-Time",
                             IsOpen = true,
                             Location = "Durban",
                             PostedDate = new DateTime(2026, 1, 15, 0, 0, 0, 0, DateTimeKind.Utc),

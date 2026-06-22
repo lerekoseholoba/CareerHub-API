@@ -10,160 +10,168 @@ namespace CareerHub_API.Services
         private readonly IJobListingRepository _jobRepo;
         private readonly ICompanyRepository _companyRepo;
 
-        public JobListingService(IJobListingRepository jobRepo, ICompanyRepository companyRepo)
+        public JobListingService(
+            IJobListingRepository jobRepo,
+            ICompanyRepository companyRepo)
         {
             _jobRepo = jobRepo;
             _companyRepo = companyRepo;
         }
-        /*
-        public async Task<PagedResponse<JobResponse>>
-                                      GetAllAsync(
-                                      int page,
-                                      int pageSize)
+
+        public async Task<PagedResponse<JobResponse>> GetAllAsync(
+            JobListingFilterQuery query,
+            int page,
+            int pageSize)
         {
-             return await _jobRepo
-             .GetActiveListingsPagedAsync(
-              page,
-              pageSize);
+            return await _jobRepo.GetActiveListingsPagedAsync(query, page, pageSize);
         }
-        */
-        public async Task<PagedResponse<JobResponse>>GetAllAsync(
-                                     JobListingFilterQuery query,
-                                                        int page,
-                                                    int pageSize)
-       {
-            return await _jobRepo
-            .GetActiveListingsPagedAsync(
-            query,
-            page,
-            pageSize);
-       }
+
         public async Task<JobResponse> GetByIdAsync(Guid id)
         {
             var job = await _jobRepo.GetListingDetailsAsync(id);
-            if (job == null) throw new Exception("Job not found");
+
+            if (job == null)
+                throw new JobNotFoundException(id);
+
             return job;
         }
 
         public async Task<JobResponse> CreateAsync(CreateJobRequest request)
-       {
-          if (!await _companyRepo.ExistsAsync(request.CompanyId))
-          throw new CompanyNotFoundException(request.CompanyId);
+        {
+            if (!await _companyRepo.ExistsAsync(request.CompanyId))
+                throw new CompanyNotFoundException(request.CompanyId);
 
-          if (request.ClosingDate <= DateTime.UtcNow)
-         throw new InvalidClosingDateException();
+            if (request.ClosingDate <= DateTime.UtcNow)
+                throw new InvalidClosingDateException();
 
-          if (request.SalaryMin.HasValue &&
-         request.SalaryMax.HasValue &&
-         request.SalaryMax <= request.SalaryMin)
-          {
-             throw new InvalidSalaryException();
-          }
+            if (request.SalaryMin.HasValue &&
+                request.SalaryMax.HasValue &&
+                request.SalaryMax <= request.SalaryMin)
+            {
+                throw new InvalidSalaryException();
+            }
 
             var listing = new JobListing
-          {
-           Id = Guid.NewGuid(),
-           Title = request.Title,
-           Description = request.Description,
-           CompanyId = request.CompanyId,
-           ClosingDate = request.ClosingDate,
-           Location = request.Location,
-           PostedDate = DateTime.UtcNow,
-           IsOpen = true,
-           SalaryMin = request.SalaryMin ?? 0,
-           SalaryMax = request.SalaryMax ?? 0
-         };
-
-         await _jobRepo.AddAsync(listing);
-
-           return await _jobRepo.GetListingDetailsAsync(listing.Id)
-           ?? throw new Exception("Failed to create job");
-        }
-
-        public async Task<JobResponse> UpdateAsync(Guid id, UpdateJobRequest request)
-        {
-            var job = await _jobRepo.GetListingDetailsAsync(id);
-            if (job == null) throw new Exception("Job not found");
-
-            // Rule: only owning company may update
-            if (job.Company != (await _companyRepo.GetByIdAsync(request.CompanyId))?.Name)
-                throw new UnauthorizedCompanyUpdateException();
-
-            // Rule: closed listings cannot be modified
-            if (!await _jobRepo.IsOpenAsync(id))
-                throw new ListingClosedException();
-
-            var updatedJob = new JobListing
             {
-                Id = id,
+                Id = Guid.NewGuid(),
                 Title = request.Title,
                 Description = request.Description,
                 CompanyId = request.CompanyId,
                 ClosingDate = request.ClosingDate,
                 Location = request.Location,
                 PostedDate = DateTime.UtcNow,
-                IsOpen = true
+                IsOpen = true,
+
+                SalaryMin = request.SalaryMin ?? 0,
+                SalaryMax = request.SalaryMax ?? 0,
+
+                // EmploymentType is required
+                EmploymentType = request.EmploymentType
             };
 
-            await _jobRepo.UpdateAsync(updatedJob);
+            await _jobRepo.AddAsync(listing);
+
+            return await _jobRepo.GetListingDetailsAsync(listing.Id)
+                   ?? throw new Exception("Failed to create job");
+        }
+
+        public async Task<JobResponse> UpdateAsync(Guid id, UpdateJobRequest request)
+        {
+            var job = await _jobRepo.GetEntityByIdAsync(id);
+
+            if (job == null)
+                throw new JobNotFoundException(id);
+
+            if (!await _jobRepo.IsOpenAsync(id))
+                throw new ListingClosedException();
+
+            if (request.ClosingDate <= DateTime.UtcNow)
+                throw new InvalidClosingDateException();
+
+            if (!string.IsNullOrWhiteSpace(request.Title))
+                job.Title = request.Title;
+
+            if (!string.IsNullOrWhiteSpace(request.Description))
+                job.Description = request.Description;
+
+            if (!string.IsNullOrWhiteSpace(request.Location))
+                job.Location = request.Location;
+
+            // EmploymentType is required
+            job.EmploymentType = request.EmploymentType;
+
+            var newMin = request.SalaryMin ?? job.SalaryMin;
+            var newMax = request.SalaryMax ?? job.SalaryMax;
+
+            if (newMin > newMax)
+                throw new InvalidSalaryException();
+
+            if (request.SalaryMin.HasValue)
+                job.SalaryMin = request.SalaryMin.Value;
+
+            if (request.SalaryMax.HasValue)
+                job.SalaryMax = request.SalaryMax.Value;
+
+            job.ClosingDate = request.ClosingDate;
+
+            await _jobRepo.UpdateAsync(job);
+
             return await _jobRepo.GetListingDetailsAsync(id)
-                   ?? throw new Exception("Failed to update job");
+                   ?? throw new JobNotFoundException(id);
         }
 
         public async Task CloseAsync(Guid id)
         {
             if (!await _jobRepo.ExistsAsync(id))
-                throw new Exception("Job not found");
+                throw new JobNotFoundException(id);
 
             await _jobRepo.CloseAsync(id);
         }
-        //Patch method in service layer
-       public async Task<JobResponse> PatchAsync(Guid id, UpdateJobListingRequest request)
-      {
-             var job = await _jobRepo.GetEntityByIdAsync(id);
+
+        public async Task<JobResponse> PatchAsync(Guid id, UpdateJobListingRequest request)
+        {
+            var job = await _jobRepo.GetEntityByIdAsync(id);
 
             if (job == null)
-               throw new JobNotFoundException(id);
+                throw new JobNotFoundException(id);
 
-           if (request.Title != null)
-                 job.Title = request.Title;
+            if (!string.IsNullOrWhiteSpace(request.Title))
+                job.Title = request.Title;
 
-           if (request.Description != null)
+            if (!string.IsNullOrWhiteSpace(request.Description))
                 job.Description = request.Description;
 
-           if (request.Location != null)
+            if (!string.IsNullOrWhiteSpace(request.Location))
                 job.Location = request.Location;
 
-           if (request.EmploymentType != null)
-              job.EmploymentType = request.EmploymentType;
+            // EmploymentType is optional for PATCH
+            if (request.EmploymentType.HasValue)
+                job.EmploymentType = request.EmploymentType.Value;
 
-           var newMin = request.SalaryMin ?? job.SalaryMin;
-           var newMax = request.SalaryMax ?? job.SalaryMax;
+            var newMin = request.SalaryMin ?? job.SalaryMin;
+            var newMax = request.SalaryMax ?? job.SalaryMax;
 
-          if ((request.SalaryMin.HasValue || request.SalaryMax.HasValue)
-             && newMin > newMax)
-           {
-              throw new InvalidSalaryException();
-           }
+            if (newMin > newMax)
+                throw new InvalidSalaryException();
 
-         if (request.SalaryMin.HasValue)
-            job.SalaryMin = request.SalaryMin.Value;
+            if (request.SalaryMin.HasValue)
+                job.SalaryMin = request.SalaryMin.Value;
 
-         if (request.SalaryMax.HasValue)
-            job.SalaryMax = request.SalaryMax.Value;
+            if (request.SalaryMax.HasValue)
+                job.SalaryMax = request.SalaryMax.Value;
 
-         if (request.ExpiresAt.HasValue)
-           {
-              if (request.ExpiresAt.Value <= DateTime.UtcNow)
-              throw new InvalidClosingDateException();
+            if (request.ExpiresAt.HasValue)
+            {
+                if (request.ExpiresAt.Value <= DateTime.UtcNow)
+                    throw new InvalidClosingDateException();
 
-              job.ClosingDate = request.ExpiresAt.Value;
-           }
+                job.ClosingDate = request.ExpiresAt.Value;
+            }
 
-          await _jobRepo.UpdateAsync(job);
+            await _jobRepo.UpdateAsync(job);
 
-          return await _jobRepo.GetListingDetailsAsync(id)
-           ?? throw new JobNotFoundException(id);
-       }
+            return await _jobRepo.GetListingDetailsAsync(id)
+                   ?? throw new JobNotFoundException(id);
+        }
     }
 }

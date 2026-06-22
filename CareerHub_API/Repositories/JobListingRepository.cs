@@ -2,7 +2,6 @@ using CareerHub_API.Data;
 using CareerHub_API.DTOs;
 using CareerHub_API.Models;
 using Microsoft.EntityFrameworkCore;
-using CareerHub_API.Exceptions;
 
 namespace CareerHub_API.Repositories
 {
@@ -32,32 +31,31 @@ namespace CareerHub_API.Repositories
             if (!string.IsNullOrWhiteSpace(filter.Location))
             {
                 query = query.Where(j =>
-                    j.Location.ToLower()
-                        .Contains(filter.Location.ToLower()));
+                    j.Location.ToLower().Contains(filter.Location.ToLower()));
             }
 
+            // ✅ ENUM FIX (IMPORTANT)
             if (!string.IsNullOrWhiteSpace(filter.EmploymentType))
             {
-                query = query.Where(j =>
-                    j.EmploymentType == filter.EmploymentType);
+                if (Enum.TryParse<JobType>(filter.EmploymentType, true, out var parsedType))
+                {
+                    query = query.Where(j => j.EmploymentType == parsedType);
+                }
             }
 
             if (filter.SalaryMin.HasValue)
             {
-                query = query.Where(j =>
-                    j.SalaryMin >= filter.SalaryMin.Value);
+                query = query.Where(j => j.SalaryMin >= filter.SalaryMin.Value);
             }
 
             if (filter.SalaryMax.HasValue)
             {
-                query = query.Where(j =>
-                    j.SalaryMax <= filter.SalaryMax.Value);
+                query = query.Where(j => j.SalaryMax <= filter.SalaryMax.Value);
             }
 
             if (filter.CompanyId.HasValue)
             {
-                query = query.Where(j =>
-                    j.CompanyId == filter.CompanyId.Value);
+                query = query.Where(j => j.CompanyId == filter.CompanyId.Value);
             }
 
             // =====================
@@ -88,8 +86,7 @@ namespace CareerHub_API.Repositories
                         ? query.OrderBy(j => j.PostedDate)
                         : query.OrderByDescending(j => j.PostedDate),
 
-                _ =>
-                    query.OrderByDescending(j => j.PostedDate)
+                _ => query.OrderByDescending(j => j.PostedDate)
             };
 
             var totalCount = await query.CountAsync();
@@ -105,7 +102,13 @@ namespace CareerHub_API.Repositories
                     Company = j.Company.Name,
                     Location = j.Location,
                     PostedAt = j.PostedDate,
+
+                    // ✅ FIX: include enum
+                    EmploymentType = j.EmploymentType,
+
                     SalaryMin = j.SalaryMin,
+                    SalaryMax = j.SalaryMax,
+                    IsOpen = j.IsOpen,
                     ApplicationCount = j.Applications.Count()
                 })
                 .ToListAsync();
@@ -118,13 +121,15 @@ namespace CareerHub_API.Repositories
                 TotalCount = totalCount
             };
         }
+
         public async Task<JobListing?> GetEntityByIdAsync(Guid id)
         {
             return await _context.JobListings
-           .Include(j => j.Company)
-           .Include(j => j.Applications)
-           .FirstOrDefaultAsync(j => j.Id == id);
+                .Include(j => j.Company)
+                .Include(j => j.Applications)
+                .FirstOrDefaultAsync(j => j.Id == id);
         }
+
         public async Task<JobResponse?> GetListingDetailsAsync(Guid id)
         {
             return await _context.JobListings
@@ -137,7 +142,13 @@ namespace CareerHub_API.Repositories
                     Company = j.Company.Name,
                     Location = j.Location,
                     PostedAt = j.PostedDate,
+
+                    // ✅ FIX
+                    EmploymentType = j.EmploymentType,
+
                     SalaryMin = j.SalaryMin,
+                    SalaryMax = j.SalaryMax,
+                    IsOpen = j.IsOpen,
                     ApplicationCount = j.Applications.Count()
                 })
                 .FirstOrDefaultAsync();
@@ -145,8 +156,7 @@ namespace CareerHub_API.Repositories
 
         public async Task<bool> ExistsAsync(Guid id)
         {
-            return await _context.JobListings
-                .AnyAsync(j => j.Id == id);
+            return await _context.JobListings.AnyAsync(j => j.Id == id);
         }
 
         public async Task<bool> IsOpenAsync(Guid id)
@@ -179,15 +189,5 @@ namespace CareerHub_API.Repositories
                 await _context.SaveChangesAsync();
             }
         }
-
-        // =====================
-        // PATCH
-        // =====================
-
-        public async Task<JobResponse> PatchAsync(Guid id,UpdateJobListingRequest request)
-      {
-        throw new NotImplementedException(
-        "Patch logic belongs in the service layer.");
-      }
     }
 }

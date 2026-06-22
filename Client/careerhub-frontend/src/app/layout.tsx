@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ThemeToggle from "./components/ThemeToggle";
+import Providers from "./providers"; //  ADD THIS
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,7 +43,10 @@ export default function RootLayout({
 
         {/* PAGE CONTENT */}
         <main className="flex-1">
-          {children}
+          {/*  React Query + providers boundary */}
+          <Providers>
+            {children}
+          </Providers>
         </main>
       </body>
     </html>

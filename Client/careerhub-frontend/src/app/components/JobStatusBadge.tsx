@@ -19,28 +19,26 @@ export default function JobStatusBadge({
   isActive,
 }: JobStatusBadgeProps) {
   // Employment type badge
-  if (employmentType) {
-    return (
-      <Badge
-        className={cn(employmentTypeClasses[employmentType])}
-      >
-        {employmentType}
-      </Badge>
-    );
-  }
+  if (employmentType && employmentTypeClasses[employmentType]) {
+  return (
+    <Badge className={cn(employmentTypeClasses[employmentType])}>
+      {employmentType}
+    </Badge>
+  );
+}
 
   // Active status badge
-  if (isActive === false) {
-    return (
-      <Badge
-        className={cn(
-          "bg-red-100 text-red-700 hover:bg-red-100"
-        )}
-      >
-        No longer accepting applications
-      </Badge>
-    );
-  }
+ if (isActive === false) {
+  return (
+    <Badge className="bg-red-100 text-red-700">
+      Closed
+    </Badge>
+  );
+}
 
-  return null;
+return (
+  <Badge className="bg-green-100 text-green-700">
+    Active
+  </Badge>
+);
 }

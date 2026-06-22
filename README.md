@@ -1805,6 +1805,259 @@ This breaks synchronization between UI and storage.
 
 N/A — build output depends on environment execution.
 
+# Assignment 1.3 – Frontend (TanStack Query & Data Fetching Decisions)
 
+---
+
+## Part 1 — Written Decisions
+
+### 1. Server state vs client state
+
+Using `useEffect + useState + fetch` instead of TanStack Query misses several built-in capabilities:
+
+#### 1. Caching
+- **TanStack Query:** Automatically caches server responses by `queryKey`.
+- **Without it:** Every mount triggers a new network request.
+- **User-visible consequence:** Slower UI and repeated loading flashes when navigating between pages or revisiting components.
+
+---
+
+#### 2. Background refetching
+- **TanStack Query:** Refetches stale data in the background while showing cached data.
+- **Without it:** You must manually trigger refetch logic.
+- **User-visible consequence:** Users see outdated data or forced loading screens instead of seamless updates.
+
+---
+
+#### 3. Loading and error state management
+- **TanStack Query:** Provides `isLoading`, `isError`, `isFetching`, and `error` automatically.
+- **Without it:** You must manually track multiple state variables and edge cases.
+- **User-visible consequence:** Inconsistent UI states (e.g. showing empty data instead of loading spinners).
+
+---
+
+#### 4. Request deduplication
+- **TanStack Query:** Multiple components requesting the same data share one network request.
+- **Without it:** Each component triggers its own fetch.
+- **User-visible consequence:** Duplicate requests cause slower performance and potential UI flickering.
+
+---
+
+### 2. The queryKey contract
+
+#### What `queryKey` does
+
+TanStack Query uses `queryKey` to:
+- Identify cached data
+- Share data between components
+- Track stale vs fresh state
+- Trigger refetching when keys change
+
+It acts as the **unique identity of a query**.
+
+---
+
+#### Failure mode 1 — Incorrect shared key
+
+If two unrelated queries share the same key (e.g. `["jobs"]` used for different datasets):
+
+- **Problem:** Data collisions in cache
+- **User-visible symptom:** One component shows incorrect or unrelated job data
+
+---
+
+#### Failure mode 2 — Over-unique key
+
+If a query uses a unique key unnecessarily (e.g. `["jobs", timestamp]` every render):
+
+- **Problem:** Cache is never reused
+- **User-visible symptom:** Constant loading states and repeated network requests
+
+---
+
+### 3. Why fetch does not throw on HTTP errors
+
+`fetch()` only rejects on **network-level failures**, not HTTP errors.
+
+Example:
+- `404 Not Found`
+- `500 Internal Server Error`
+
+These still resolve successfully as a Response object.
+
+---
+
+#### Why `res.ok` matters
+
+- `res.ok === false` for HTTP errors
+- If you do not manually throw:
+  - TanStack Query thinks the request succeeded
+
+---
+
+#### What happens if you don’t throw
+
+If `res.ok` is false but no error is thrown:
+
+- TanStack Query treats response as success
+- `data` becomes `undefined` or invalid shape
+- UI renders incorrect or empty state silently
+
+---
+
+#### User-visible result
+
+- No error UI is shown
+- Empty or broken UI appears instead of failure message
+- Debugging becomes difficult because no error is surfaced
+
+---
+
+### 4. Stale-while-revalidate
+
+With default `staleTime = 0`:
+
+#### When user returns to tab:
+- Cached data is shown immediately
+- Background refetch starts
+- UI updates seamlessly when new data arrives
+
+---
+
+#### Compared to `useEffect + []`
+
+With manual fetching:
+
+- No caching exists
+- On tab focus:
+  - Full loading state appears again
+  - UI flashes empty/loading state
+- User experiences unnecessary reloads
+
+---
+
+## README Updates
+
+---
+
+### 1. What TanStack Query manages
+
+`useQuery` automatically manages:
+
+#### 1. Data state
+- Stores fetched server data
+- Manual equivalent: `useState(data)`
+
+---
+
+#### 2. Loading state
+- Tracks initial and background loading
+- Manual equivalent: `useState(isLoading)` + careful lifecycle tracking
+
+---
+
+#### 3. Error state
+- Captures thrown errors
+- Manual equivalent: `useState(error)` + try/catch in effects
+
+---
+
+#### 4. Caching
+- Keeps previous results in memory
+- Manual equivalent: custom cache object or global store
+
+---
+
+#### 5. Background refetching
+- Keeps data fresh automatically
+- Manual equivalent: `setInterval`, `visibilitychange` listeners
+
+---
+
+#### 6. Request deduplication
+- Prevents duplicate identical requests
+- Manual equivalent: request tracking map
+
+---
+
+#### 7. Stale vs fresh tracking
+- Knows when to refetch data
+- Manual equivalent: timestamps + comparison logic
+
+---
+
+### 2. The queryKey design decision
+
+`["jobs"]` means:
+- This query represents the **global jobs dataset**
+- It is cached and shared across the app under that identity
+
+---
+
+#### If filtering by location
+
+Example:
+
+- `["jobs", "Auckland"]`
+- `["jobs", "Wellington"]`
+
+---
+
+#### Why include filter in queryKey
+
+Because TanStack Query treats each key as distinct:
+
+- Different filters = different data sets
+- Prevents cache collisions
+- Ensures correct UI per filter
+
+---
+
+#### Without filter in key
+
+- All locations would show same cached result
+- UI would display incorrect job listings
+
+---
+
+### 3. Skeleton design rationale
+
+`JobCardSkeleton` mirrors `JobCard` to maintain **layout stability**.
+
+---
+
+#### What is layout shift?
+
+Layout shift happens when:
+- UI structure changes after data loads
+- Elements jump position when content replaces placeholders
+
+---
+
+#### Why skeleton structure matters
+
+If skeleton matches real UI:
+
+- Grid size stays identical
+- Card height remains stable
+- No visual jumping occurs
+
+---
+
+#### Why not use a spinner?
+
+A spinner:
+- Does not preserve layout
+- Causes empty space collapse
+- Leads to visible UI shifting when data loads
+
+---
+
+### 4. Build gate
+
+The project must compile successfully:
+
+```bash
+npm run build
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)

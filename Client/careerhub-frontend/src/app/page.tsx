@@ -1,106 +1,43 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { JobListing } from "./types";
+import { useQuery } from "@tanstack/react-query";
+
+import type { JobListing ,PagedJobsResponse} from "./types";
+//import type { PagedJobsResponse } from "./lib/api";
+
 import JobList from "./components/JobList";
+import { JobListSkeleton } from "./components/JobCardSkeleton";
+import { fetchJobs } from "./lib/api";
 
 export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const jobs: JobListing[] = [
-    {
-      id: "a1",
-      title: "Frontend Developer",
-      company: "Capitec Bank",
-      location: "Cape Town",
-      jobType: "FullTime",
-      salaryMin: 35000,
-      salaryMax: 55000,
-      postedDate: new Date().toISOString(),
-      isOpen: true,
-      applicantCount: 12,
-    },
-    {
-      id: "a2",
-      title: "Backend Engineer",
-      company: "Takealot",
-      location: "Remote",
-      jobType: "FullTime",
-      salaryMin: 45000,
-      salaryMax: 70000,
-      postedDate: new Date().toISOString(),
-      isOpen: true,
-      applicantCount: 0,
-    },
-    {
-      id: "a3",
-      title: "Data Analyst",
-      company: "Discovery",
-      location: "Johannesburg",
-      jobType: "Contract",
-      salaryMin: 30000,
-      salaryMax: 50000,
-      postedDate: new Date(Date.now() - 10 * 86400000).toISOString(),
-      isOpen: true,
-      applicantCount: 6,
-    },
-    {
-      id: "a4",
-      title: "UX Designer",
-      company: "Nedbank",
-      location: "Sandton",
-      jobType: "PartTime",
-      salaryMin: 25000,
-      salaryMax: 40000,
-      postedDate: new Date(Date.now() - 40 * 86400000).toISOString(),
-      isOpen: true,
-      applicantCount: 3,
-    },
-    {
-      id: "a5",
-      title: "DevOps Engineer",
-      company: "Standard Bank",
-      location: "Johannesburg",
-      jobType: "FullTime",
-      salaryMin: 60000,
-      salaryMax: 90000,
-      postedDate: new Date(Date.now() - 3 * 86400000).toISOString(),
-      isOpen: false,
-      applicantCount: 18,
-    },
-    {
-      id: "a6",
-      title: "Software Intern",
-      company: "FNB",
-      location: "Remote",
-      jobType: "Internship",
-      salaryMin: 8000,
-      salaryMax: 12000,
-      postedDate: new Date(Date.now() - 60 * 86400000).toISOString(),
-      isOpen: true,
-      applicantCount: 0,
-    },
-  ];
+  const {
+    data,
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useQuery<PagedJobsResponse, Error>({
+    queryKey: ["jobs"],
+    queryFn: fetchJobs,
+  });
 
-  const selectedJob =
-    jobs.find((job) => job.id === selectedId) || null;
+  // ✅ extract actual array
+  const jobs = data?.data ?? [];
+
+  const selectedJob = jobs.find((job) => job.id === selectedId);
 
   const handleSelect = (id: string) => {
     setSelectedId((prev) => (prev === id ? null : id));
   };
 
-  /* Restore selection on mount */
   useEffect(() => {
     const storedId = sessionStorage.getItem("selectedJobId");
-
-    if (!storedId) return;
-
-    const exists = jobs.some((job) => job.id === storedId);
-
-    if (exists) setSelectedId(storedId);
+    if (storedId) setSelectedId(storedId);
   }, []);
 
-  /* Sync selection */
   useEffect(() => {
     if (selectedId) {
       sessionStorage.setItem("selectedJobId", selectedId);
@@ -109,21 +46,44 @@ export default function Home() {
     }
   }, [selectedId]);
 
+  if (isPending) return <JobListSkeleton />;
+
+  if (isError) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-8">
+        <div className="max-w-md rounded-lg border border-red-300 bg-red-50 p-6 dark:border-red-700 dark:bg-red-950">
+          <h2 className="mb-2 text-lg font-semibold text-red-700 dark:text-red-300">
+            Failed to load jobs
+          </h2>
+
+          <p className="mb-4 text-sm text-red-600 dark:text-red-400">
+            {error.message}
+          </p>
+
+          <button
+            onClick={() => refetch()}
+            className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+          >
+            Try again
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="p-8 space-y-6 bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">
-        ConferenceHub
+    <main className="min-h-screen space-y-6 bg-gray-50 p-8 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
+      <h1 className="mb-6 text-3xl font-bold">
+        CareerHub Job Listings
       </h1>
 
+      <p className="text-sm text-gray-500">
+        Showing {data?.totalCount ?? 0} jobs
+      </p>
+
       {selectedJob && (
-        <div className="
-          rounded-lg border p-4 shadow-sm
-          bg-white text-gray-900 border-gray-200
-          dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700
-        ">
-          <h2 className="text-lg font-semibold">
-            {selectedJob.title}
-          </h2>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <h2 className="text-lg font-semibold">{selectedJob.title}</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             {selectedJob.company}
           </p>
