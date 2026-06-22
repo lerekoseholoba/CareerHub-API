@@ -11,7 +11,7 @@ namespace CareerHub_API.Controllers;
 
 [ApiController]
 [ApiVersion(1)]
-[Route("api/jobs")]
+//[Route("api/jobs")]
 [Route("api/v{version:apiVersion}/[controller]")]
 public class JobsController : ControllerBase
 {

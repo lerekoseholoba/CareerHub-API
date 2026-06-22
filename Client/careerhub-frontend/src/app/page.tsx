@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import type { JobListing } from "./types";
+import type { JobListing ,PagedJobsResponse} from "./types";
+//import type { PagedJobsResponse } from "./lib/api";
+
 import JobList from "./components/JobList";
 import { JobListSkeleton } from "./components/JobCardSkeleton";
 import { fetchJobs } from "./lib/api";
@@ -12,35 +14,30 @@ export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const {
-    data: jobs,
+    data,
     isPending,
     isError,
     error,
     refetch,
-  } = useQuery<JobListing[], Error>({
+  } = useQuery<PagedJobsResponse, Error>({
     queryKey: ["jobs"],
     queryFn: fetchJobs,
-  //queryFn: () => new Promise<JobListing[]>(() => {}),
   });
 
-  const selectedJob =
-    jobs?.find((job) => job.id === selectedId);
+  // ✅ extract actual array
+  const jobs = data?.data ?? [];
+
+  const selectedJob = jobs.find((job) => job.id === selectedId);
 
   const handleSelect = (id: string) => {
     setSelectedId((prev) => (prev === id ? null : id));
   };
 
-  // Restore selection on mount
   useEffect(() => {
     const storedId = sessionStorage.getItem("selectedJobId");
-
-    if (storedId) {
-      // Assignment says remove the validation
-      setSelectedId(storedId);
-    }
+    if (storedId) setSelectedId(storedId);
   }, []);
 
-  // Sync selection
   useEffect(() => {
     if (selectedId) {
       sessionStorage.setItem("selectedJobId", selectedId);
@@ -49,12 +46,8 @@ export default function Home() {
     }
   }, [selectedId]);
 
-  // Pending state
-  if (isPending) {
-    return <JobListSkeleton />;
-  }
+  if (isPending) return <JobListSkeleton />;
 
-  // Error state
   if (isError) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-8">
@@ -78,28 +71,19 @@ export default function Home() {
     );
   }
 
-  // Guard against undefined data
-  if (!jobs) {
-    return null;
-  }
-
   return (
     <main className="min-h-screen space-y-6 bg-gray-50 p-8 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <h1 className="mb-6 text-3xl font-bold">
         CareerHub Job Listings
       </h1>
 
-      {selectedJob && (
-        <div
-          className="
-            rounded-lg border border-gray-200 bg-white p-4 shadow-sm
-            dark:border-gray-700 dark:bg-gray-900
-          "
-        >
-          <h2 className="text-lg font-semibold">
-            {selectedJob.title}
-          </h2>
+      <p className="text-sm text-gray-500">
+        Showing {data?.totalCount ?? 0} jobs
+      </p>
 
+      {selectedJob && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <h2 className="text-lg font-semibold">{selectedJob.title}</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             {selectedJob.company}
           </p>

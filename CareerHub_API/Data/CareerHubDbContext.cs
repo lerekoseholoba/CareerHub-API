@@ -23,37 +23,18 @@ public class CareerHubDbContext : DbContext
 
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Title)
-                .IsRequired()
-                .HasMaxLength(100);
+            entity.Property(x => x.Title).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.Description).IsRequired().HasMaxLength(1000);
+            entity.Property(x => x.Location).IsRequired().HasMaxLength(100);
 
-            entity.Property(x => x.Description)
-                .IsRequired()
-                .HasMaxLength(1000);
+            entity.Property(x => x.PostedDate).IsRequired();
+            entity.Property(x => x.ClosingDate).IsRequired();
 
-            entity.Property(x => x.Location)
-                .IsRequired()
-                .HasMaxLength(100);
+            entity.Property(x => x.IsOpen).IsRequired().HasDefaultValue(true);
 
-            entity.Property(x => x.PostedDate)
-                .IsRequired();
+            entity.Property(x => x.SalaryMin).IsRequired();
+            entity.Property(x => x.SalaryMax).IsRequired();
 
-            entity.Property(x => x.ClosingDate)
-                .IsRequired();
-
-            entity.Property(x => x.IsOpen)
-                .IsRequired()
-                .HasDefaultValue(true);
-
-            entity.Property(x => x.SalaryMin)
-                .IsRequired();
-
-            entity.Property(x => x.SalaryMax)
-                .IsRequired();
-
-            // =====================
-            // CHECK CONSTRAINTS
-            // =====================
             entity.HasCheckConstraint(
                 "CK_JobListing_SalaryRange",
                 "\"SalaryMax\" >= \"SalaryMin\""
@@ -64,14 +45,8 @@ public class CareerHubDbContext : DbContext
                 "\"ClosingDate\" >= \"PostedDate\""
             );
 
-            // =====================
-            // Indexes
-            // =====================
             entity.HasIndex(x => x.Title);
 
-            // =====================
-            // Relationships
-            // =====================
             entity.HasOne(x => x.Company)
                 .WithMany(c => c.JobListings)
                 .HasForeignKey(x => x.CompanyId)
@@ -84,18 +59,11 @@ public class CareerHubDbContext : DbContext
 
             entity.HasKey(c => c.Id);
 
-            entity.Property(c => c.Name)
-                .HasMaxLength(200)
-                .IsRequired();
+            entity.Property(c => c.Name).IsRequired().HasMaxLength(200);
+            entity.Property(c => c.Website).HasMaxLength(200);
+            entity.Property(c => c.Industry).HasMaxLength(100);
 
-            entity.Property(c => c.Website)
-                .HasMaxLength(200);
-
-            entity.Property(c => c.Industry)
-                .HasMaxLength(100);
-
-            entity.HasIndex(c => c.Name)
-                .IsUnique();
+            entity.HasIndex(c => c.Name).IsUnique();
         });
 
         modelBuilder.Entity<Applicant>(entity =>
@@ -104,19 +72,11 @@ public class CareerHubDbContext : DbContext
 
             entity.HasKey(a => a.Id);
 
-            entity.Property(a => a.Name)
-                .HasMaxLength(200)
-                .IsRequired();
+            entity.Property(a => a.Name).IsRequired().HasMaxLength(200);
+            entity.Property(a => a.Email).IsRequired().HasMaxLength(255);
+            entity.Property(a => a.PasswordHash).IsRequired();
 
-            entity.Property(a => a.Email)
-                .HasMaxLength(255)
-                .IsRequired();
-
-            entity.Property(a => a.PasswordHash)
-                .IsRequired();
-
-            entity.HasIndex(a => a.Email)
-                .IsUnique();
+            entity.HasIndex(a => a.Email).IsUnique();
         });
 
         modelBuilder.Entity<Application>(entity =>
@@ -125,32 +85,21 @@ public class CareerHubDbContext : DbContext
 
             entity.HasKey(a => new { a.JobListingId, a.ApplicantId });
 
-            entity.Property(a => a.SubmittedAt)
-                .IsRequired();
+            entity.Property(a => a.SubmittedAt).IsRequired();
+            entity.Property(a => a.Status).IsRequired();
 
-            entity.Property(a => a.Status)
-                .IsRequired();
-
-            entity.Property(a => a.ResumeUrl)
-                .HasDefaultValue(string.Empty);
-
-            entity.Property(a => a.CoverLetter)
-                .HasDefaultValue(string.Empty);
+            entity.Property(a => a.ResumeUrl).HasDefaultValue(string.Empty);
+            entity.Property(a => a.CoverLetter).HasDefaultValue(string.Empty);
 
             entity.HasOne(a => a.JobListing)
                 .WithMany(j => j.Applications)
-                .HasForeignKey(a => a.JobListingId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey(a => a.JobListingId);
 
             entity.HasOne(a => a.Applicant)
                 .WithMany(a => a.Applications)
-                .HasForeignKey(a => a.ApplicantId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey(a => a.ApplicantId);
         });
 
-        // =====================
-        // Seed initial data
-        // =====================
         SeedData.Seed(modelBuilder);
     }
 }

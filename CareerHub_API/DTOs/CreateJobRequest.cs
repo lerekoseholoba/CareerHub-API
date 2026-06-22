@@ -2,7 +2,22 @@ using System.ComponentModel.DataAnnotations;
 using CareerHub_API.Models;
 
 namespace CareerHub_API.DTOs;
+public class CreateJobRequest
+{
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public Guid CompanyId { get; set; }
+    public string Location { get; set; } = string.Empty;
 
+    public DateTime ClosingDate { get; set; }
+
+    public decimal? SalaryMin { get; set; }
+    public decimal? SalaryMax { get; set; }
+
+    // ✅ ADD THIS
+    public JobType EmploymentType { get; set; } 
+}
+/*
 public class CreateJobRequest : IValidatableObject
 {
     [Required]
@@ -48,4 +63,6 @@ public class CreateJobRequest : IValidatableObject
                 new[] { nameof(SalaryMax) });
         }
     }
+    
 }
+*/

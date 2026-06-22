@@ -16,3 +16,12 @@ export interface JobListing {
   isOpen : boolean;
   applicantCount: number;
 }
+export interface PagedJobsResponse {
+  data: JobListing[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
