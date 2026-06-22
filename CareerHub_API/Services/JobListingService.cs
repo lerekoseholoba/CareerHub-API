@@ -65,8 +65,8 @@ namespace CareerHub_API.Services
                 SalaryMin = request.SalaryMin ?? 0,
                 SalaryMax = request.SalaryMax ?? 0,
 
-                // ✅ FIX: direct enum assignment
-                EmploymentType = request.EmploymentType ?? JobType.FullTime
+                // EmploymentType is required
+                EmploymentType = request.EmploymentType
             };
 
             await _jobRepo.AddAsync(listing);
@@ -85,6 +85,9 @@ namespace CareerHub_API.Services
             if (!await _jobRepo.IsOpenAsync(id))
                 throw new ListingClosedException();
 
+            if (request.ClosingDate <= DateTime.UtcNow)
+                throw new InvalidClosingDateException();
+
             if (!string.IsNullOrWhiteSpace(request.Title))
                 job.Title = request.Title;
 
@@ -94,9 +97,8 @@ namespace CareerHub_API.Services
             if (!string.IsNullOrWhiteSpace(request.Location))
                 job.Location = request.Location;
 
-            // ✅ FIX: enum update (NO string checks)
-            if (request.EmploymentType.HasValue)
-                job.EmploymentType = request.EmploymentType.Value;
+            // EmploymentType is required
+            job.EmploymentType = request.EmploymentType;
 
             var newMin = request.SalaryMin ?? job.SalaryMin;
             var newMax = request.SalaryMax ?? job.SalaryMax;
@@ -110,7 +112,6 @@ namespace CareerHub_API.Services
             if (request.SalaryMax.HasValue)
                 job.SalaryMax = request.SalaryMax.Value;
 
-            // ❌ FIX: ClosingDate is NOT nullable in your model
             job.ClosingDate = request.ClosingDate;
 
             await _jobRepo.UpdateAsync(job);
@@ -143,7 +144,7 @@ namespace CareerHub_API.Services
             if (!string.IsNullOrWhiteSpace(request.Location))
                 job.Location = request.Location;
 
-            // ✅ FIX: enum patch
+            // EmploymentType is optional for PATCH
             if (request.EmploymentType.HasValue)
                 job.EmploymentType = request.EmploymentType.Value;
 

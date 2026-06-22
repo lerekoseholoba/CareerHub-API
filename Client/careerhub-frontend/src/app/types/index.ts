@@ -3,13 +3,12 @@ export type JobType =
   | "PartTime"
   | "Contract"
   | "Internship";
-
 export interface JobListing {
   id: string;
   title: string;
   company: string;
   location: string;
-  jobType: JobType;
+  employmentType: JobType;
   salaryMin: number;
   salaryMax: number;
   postedDate : string;

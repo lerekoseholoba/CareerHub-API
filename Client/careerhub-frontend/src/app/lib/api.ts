@@ -7,7 +7,7 @@ export async function fetchJobs(): Promise<PagedJobsResponse> {
     throw new Error("NEXT_PUBLIC_API_URL is not defined");
   }
 
-  const url = `${BASE_URL}/api/v1/jobs`;
+  const url = `${BASE_URL}/api/v1/Jobs`;
 
   const res = await fetch(url);
 

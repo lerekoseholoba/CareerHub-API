@@ -23,17 +23,31 @@ public class CareerHubDbContext : DbContext
 
             entity.HasKey(x => x.Id);
 
-            entity.Property(x => x.Title).IsRequired().HasMaxLength(100);
-            entity.Property(x => x.Description).IsRequired().HasMaxLength(1000);
-            entity.Property(x => x.Location).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.Title)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(x => x.Description)
+                .IsRequired()
+                .HasMaxLength(1000);
+
+            entity.Property(x => x.Location)
+                .IsRequired()
+                .HasMaxLength(100);
 
             entity.Property(x => x.PostedDate).IsRequired();
             entity.Property(x => x.ClosingDate).IsRequired();
 
-            entity.Property(x => x.IsOpen).IsRequired().HasDefaultValue(true);
+            entity.Property(x => x.IsOpen)
+                .IsRequired()
+                .HasDefaultValue(true);
 
             entity.Property(x => x.SalaryMin).IsRequired();
             entity.Property(x => x.SalaryMax).IsRequired();
+
+            // ✅ FIXED ENUM MAPPING (CRITICAL FIX)
+            entity.Property(x => x.EmploymentType)
+                .HasConversion<int>();
 
             entity.HasCheckConstraint(
                 "CK_JobListing_SalaryRange",
@@ -59,9 +73,15 @@ public class CareerHubDbContext : DbContext
 
             entity.HasKey(c => c.Id);
 
-            entity.Property(c => c.Name).IsRequired().HasMaxLength(200);
-            entity.Property(c => c.Website).HasMaxLength(200);
-            entity.Property(c => c.Industry).HasMaxLength(100);
+            entity.Property(c => c.Name)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(c => c.Website)
+                .HasMaxLength(200);
+
+            entity.Property(c => c.Industry)
+                .HasMaxLength(100);
 
             entity.HasIndex(c => c.Name).IsUnique();
         });
@@ -72,9 +92,16 @@ public class CareerHubDbContext : DbContext
 
             entity.HasKey(a => a.Id);
 
-            entity.Property(a => a.Name).IsRequired().HasMaxLength(200);
-            entity.Property(a => a.Email).IsRequired().HasMaxLength(255);
-            entity.Property(a => a.PasswordHash).IsRequired();
+            entity.Property(a => a.Name)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.Property(a => a.Email)
+                .IsRequired()
+                .HasMaxLength(255);
+
+            entity.Property(a => a.PasswordHash)
+                .IsRequired();
 
             entity.HasIndex(a => a.Email).IsUnique();
         });
@@ -88,8 +115,11 @@ public class CareerHubDbContext : DbContext
             entity.Property(a => a.SubmittedAt).IsRequired();
             entity.Property(a => a.Status).IsRequired();
 
-            entity.Property(a => a.ResumeUrl).HasDefaultValue(string.Empty);
-            entity.Property(a => a.CoverLetter).HasDefaultValue(string.Empty);
+            entity.Property(a => a.ResumeUrl)
+                .HasDefaultValue(string.Empty);
+
+            entity.Property(a => a.CoverLetter)
+                .HasDefaultValue(string.Empty);
 
             entity.HasOne(a => a.JobListing)
                 .WithMany(j => j.Applications)
