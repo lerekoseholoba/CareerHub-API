@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import type { JobListing ,PagedJobsResponse} from "./types";
-//import type { PagedJobsResponse } from "./lib/api";
+import type { JobListing, PagedJobsResponse } from "./types";
 
 import JobList from "./components/JobList";
 import { JobListSkeleton } from "./components/JobCardSkeleton";
 import { fetchJobs } from "./lib/api";
+import ApplicationForm from "./components/ApplicationForm";
 
 export default function Home() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -24,10 +24,8 @@ export default function Home() {
     queryFn: fetchJobs,
   });
 
-  // ✅ extract actual array
   const jobs = data?.data ?? [];
-
-  const selectedJob = jobs.find((job) => job.id === selectedId);
+  const selectedJob = jobs.find((job) => job.id === selectedId) ?? null;
 
   const handleSelect = (id: string) => {
     setSelectedId((prev) => (prev === id ? null : id));
@@ -55,11 +53,9 @@ export default function Home() {
           <h2 className="mb-2 text-lg font-semibold text-red-700 dark:text-red-300">
             Failed to load jobs
           </h2>
-
           <p className="mb-4 text-sm text-red-600 dark:text-red-400">
             {error.message}
           </p>
-
           <button
             onClick={() => refetch()}
             className="rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700"
@@ -73,9 +69,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen space-y-6 bg-gray-50 p-8 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      <h1 className="mb-6 text-3xl font-bold">
-        CareerHub Job Listings
-      </h1>
+      <h1 className="mb-6 text-3xl font-bold">CareerHub Job Listings</h1>
 
       <p className="text-sm text-gray-500">
         Showing {data?.totalCount ?? 0} jobs
@@ -95,6 +89,13 @@ export default function Home() {
         selectedId={selectedId}
         onSelect={handleSelect}
       />
+
+      {!isPending && !isError && selectedJob !== null && (
+        <ApplicationForm
+          jobId={selectedJob.id}
+          jobTitle={selectedJob.title}
+        />
+      )}
     </main>
   );
 }
