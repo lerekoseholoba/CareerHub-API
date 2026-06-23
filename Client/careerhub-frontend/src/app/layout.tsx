@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";
 import ThemeToggle from "./components/ThemeToggle";
-import Providers from "./providers"; //  ADD THIS
+import Providers from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +29,6 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {/* HEADER WITH THEME TOGGLE */}
         <header
           className="
             flex items-center justify-between px-6 py-4 border-b
@@ -36,14 +36,34 @@ export default function RootLayout({
             dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700
           "
         >
-          <h1 className="text-lg font-bold">CareerHub</h1>
+          <Link
+            href="/"
+            className="text-lg font-bold hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          >
+            CareerHub
+          </Link>
 
-          <ThemeToggle />
+          <div className="flex items-center gap-6">
+            <nav className="flex items-center gap-4">
+              <Link
+                href="/jobs"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
+              >
+                Jobs
+              </Link>
+              <Link
+                href="/dashboard"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
+              >
+                Dashboard
+              </Link>
+            </nav>
+
+            <ThemeToggle />
+          </div>
         </header>
 
-        {/* PAGE CONTENT */}
         <main className="flex-1">
-          {/*  React Query + providers boundary */}
           <Providers>
             {children}
           </Providers>
