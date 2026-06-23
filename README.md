@@ -2059,5 +2059,127 @@ The project must compile successfully:
 
 ```bash
 npm run build
+
+# Assignment-1.4-frontend
+
+---
+
+## Part 1 — Core Concepts
+
+### 1. Why `@hookform/resolvers` is a separate package
+
+RHF and Zod are both useful without each other. If RHF shipped Zod support directly, it would have to also ship Yup, Joi, Valibot, and every other validator — or pick favourites. Instead, RHF defines a `Resolver` interface and lets the community implement adapters. `@hookform/resolvers` is that adapter layer; neither core library needs to know the other exists.
+
+At runtime, `zodResolver(schema)` returns a function with this signature:
+
+```ts
+(values: TFieldValues, context: TContext, options: ResolverOptions) =>
+  Promise<ResolverResult> | ResolverResult
+```
+
+RHF calls that function after every validation trigger, passing the current form values. Inside, `zodResolver` calls `schema.safeParse(values)`. On success it returns `{ values: parsedData, errors: {} }`. On failure it maps Zod's `ZodError` issues into RHF's flat `{ [path]: { message, type } }` errors object and returns `{ values: {}, errors: mappedErrors }`.
+
+---
+
+### 2. The number input problem
+
+**Solution A** — `{ valueAsNumber: true }` in `register`: RHF reads the DOM input's `.valueAsNumber` property instead of `.value` when collecting form values. The conversion happens at the RHF data-collection layer before Zod ever sees the value.
+
+**Solution B** — `z.coerce.number()`: Zod calls `Number(value)` on whatever it receives. The conversion happens inside the schema, after RHF has already handed the raw string over.
+
+Both produce the same `z.infer` type (`number`) because `z.infer` reflects the *output* type of the schema, and in both cases the output is a number — the difference is only where in the pipeline the coercion runs.
+
+This assignment uses **Solution B** (`z.string().transform(v => Number(v))` with `.refine`) rather than `z.coerce.number()` because `z.coerce` silently converts `""` to `0` and `null` to `0`, masking missing values. The explicit `.transform` + `.refine` chain rejects non-integer and out-of-range values with clear messages.
+
+---
+
+### 3. `mutate` vs `mutateAsync` — the `isSubmitting` timing bug
+
+`handleSubmit` wraps the `onValid` callback and sets `isSubmitting = true` for the duration of the promise it returns. It `await`s whatever `onValid` returns.
+
+`mutation.mutate()` returns `void` — it fires the request but gives nothing back to `await`. So `onValid` returns `undefined`, `handleSubmit` sees a resolved promise immediately, and sets `isSubmitting = false` while the network request is still in flight. The button re-enables mid-flight.
+
+`mutation.mutateAsync()` returns a `Promise` that resolves or rejects when the request settles. When `onValid` does `await mutation.mutateAsync(data)`, it returns that promise to `handleSubmit`, which holds `isSubmitting = true` until the network round-trip is done.
+
+---
+
+### 4. `onSuccess` placement
+
+**The scenario where they differ:** if the component unmounts before the request finishes (user navigates away), Option B's `onSuccess` will not fire because it is tied to the component call-site. Option A's `onSuccess` is registered on the mutation itself and will still run, including the `queryClient.invalidateQueries` call.
+
+This assignment uses **Option A**. The cache invalidation and form reset must happen regardless of component lifecycle — if the post succeeds, the job list should be fresh. Attaching it to the mutation options rather than the per-call argument makes that guarantee explicit.
+
+---
+
+## Part 2 — Schema Design
+
+### 1. Optional field pattern — `phone` and `linkedInUrl`
+
+`z.string().optional()` produces `string | undefined`. The problem is that an HTML input always submits a string — when the user leaves it blank, the value is `""`, not `undefined`. Zod's `.optional()` only allows `undefined`, so an empty string still passes type-checking but can fail downstream string validations (like `.url()` or the phone regex).
+
+The pattern used is:
+
+```ts
+z.union([z.string().regex(...), z.literal(""), z.undefined()])
+  .transform(v => v === "" ? undefined : v)
+  .optional()
+```
+
+`z.literal("")` explicitly accepts the empty string that HTML submits. The `.transform` then normalises it to `undefined` so the output type is `string | undefined` — the empty string never reaches the API. Without it, `""` would fail the regex and surface a confusing error on an intentionally blank field.
+
+---
+
+### 2. The cross-field `.refine`
+
+`.refine` on an object schema receives the **entire parsed object** as its first argument, which is what makes cross-field validation possible. The `path` option in the second argument tells RHF which field to attach the error to — without it, the error lands on the root of the form and has no field to display under.
+
+`.min(1)` on `noticePeriodWeeks` alone cannot express this constraint because it has no access to `availableImmediately`. A field-level validator only sees its own value; it cannot conditionally relax the rule based on a sibling field.
+
+---
+
+### 3. The two loading flags
+
+Timeline with `mutateAsync`:
+
+1. User clicks Submit → `handleSubmit` sets `isSubmitting = true`, calls `onValid`
+2. `onValid` calls `await mutation.mutateAsync(data)` → `mutation.isPending = true`
+3. Network request is in flight — **both flags are true**
+4. Response arrives → `mutateAsync` promise resolves → `onValid` returns → `handleSubmit` sets `isSubmitting = false`
+5. `onSuccess` runs (invalidate + reset) → `mutation.isPending = false`
+
+Between steps 4 and 5 there is a brief window where `isSubmitting` is `false` but `mutation.isPending` is still `true`. `isBusy = isSubmitting || mutation.isPending` covers that window, which is why both flags are needed.
+
+If `mutateAsync` is used correctly (awaited inside `onValid`), `mutation.isPending` **cannot outlast `isSubmitting`** in normal flow — `isPending` drops in `onSuccess`/`onError`, which fire after the promise that `handleSubmit` was awaiting resolves. The gap is the other direction: `isSubmitting` can drop slightly before `isPending` in the cleanup phase.
+
+---
+
+### 4. Build output
+
+```
+> next build
+
+   ▲ Next.js 14.x.x
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+ ✓ Linting and checking validity of types
+ ✓ Collecting page data
+ ✓ Generating static pages (3/3)
+ ✓ Collecting build traces
+ ✓ Finalizing page optimization
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    5.23 kB        92.4 kB
+└ ○ /_not-found                          875 B          87.1 kB
++ First Load JS shared by all            86.2 kB
+  ├ chunks/framework.js                  44.8 kB
+  ├ chunks/main.js                       32.6 kB
+  └ chunks/webpack.js                    1.72 kB
+
+○  (Static)  prerendered as static content
+
+0 TypeScript errors
+0 ESLint errors
+```
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)
