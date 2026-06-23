@@ -2181,5 +2181,113 @@ Route (app)                              Size     First Load JS
 0 TypeScript errors
 0 ESLint errors
 ```
+
+# Assignment-2.1-frontend
+
+---
+
+## Part 1 — Core Concepts
+
+### 1. `cache: "no-store"` vs the default
+
+`cache: "no-store"` operates at the **Next.js server-side cache**, not the browser cache or a CDN. When a Server Component calls `fetch()`, Next.js intercepts it and stores the response in an in-memory cache on the server. `cache: "no-store"` tells Next.js to skip that cache entirely and always make a real network request to the upstream API on every incoming page request.
+
+You would use the default cached behaviour for data that doesn't change often — for example, a list of countries, a pricing table, or static CMS content. If the data is the same for every user and doesn't change between deployments, caching it means Next.js only fetches it once and serves every subsequent request instantly from memory.
+
+The fundamental difference from TanStack Query is **where the cache lives**. TanStack Query's cache lives in the browser — it is per-user, per-session, and re-evaluated on the client based on `staleTime` and window focus events. Next.js fetch caching lives on the server — it is shared across all users, has no concept of staleness time, and is invalidated either on revalidation intervals or on the next deployment. One is a client-side UX tool; the other is a server-side performance tool.
+
+---
+
+### 2. The `"use client"` boundary and what crosses it
+
+`"use client"` marks a **module boundary**. Every file that contains it, and every module imported by that file that isn't itself a Server Component, becomes part of the client bundle. It doesn't mark a single component — it marks the entry point of a client-side module graph.
+
+The Server Component (`/jobs/[id]/page.tsx`) runs on the server at request time. It fetches the job, resolves the data, and produces **HTML** — the title, company, location, description, and status badge all arrive in the initial HTTP response as fully rendered markup.
+
+The Client Component (`ApplicationForm`) contributes **JavaScript**. The server renders its initial HTML shell (the form markup), but the interactivity — `useState`, `useForm`, event handlers, mutation logic — is sent as a JS bundle that hydrates in the browser after the HTML arrives.
+
+What the browser actually receives for `/jobs/some-id`:
+- **Initial HTML response** — the full page markup including the job details and the static form shell, rendered server-side
+- **JavaScript bundle** — the hydration code for `ApplicationForm` and its dependencies (RHF, Zod, TanStack Query), which attaches event listeners and makes the form interactive
+
+---
+
+### 3. Why `params.id` is always a string
+
+URL segments are always strings at the HTTP level. The browser sends `/jobs/42` or `/jobs/some-uuid` as a raw string path — there is no type information in a URL. Next.js reads that segment directly from the request path and passes it as-is. It has no way to know whether `42` should be a number or whether `a1b2c3d4` should be parsed as a UUID — that's application-level knowledge, not routing-level knowledge, so it types everything as `string` and leaves conversion to the developer.
+
+In this assignment, no conversion is needed. The jobs API accepts a string GUID, and `params.id` is already a string. It can be passed directly to the fetch call without parsing or casting.
+
+---
+
+### 4. What "layout persists" actually means
+
+"Does not re-render" means React does not call the layout component function again on navigation. The DOM nodes for the sidebar are not destroyed and recreated — React keeps them in place and only swaps out the `children` slot with the new page's output. Any state inside the layout (if it were a Client Component) would be preserved across navigations.
+
+To keep dynamic data in the sidebar up to date without making the layout a Client Component, you can use **`revalidatePath` or `revalidateTag`** from `next/cache`. When a mutation happens (e.g. a new job is posted), the server action or API route calls `revalidatePath("/dashboard")`, which tells Next.js to re-fetch the data for that layout segment on the next request. The layout stays a Server Component, re-runs its data fetch on the next navigation, and the sidebar count updates without any client-side state.
+
+---
+
+## Part 2 — README Updates
+
+### 1. The composition pattern in `/jobs/[id]`
+
+The sequence is:
+
+1. A request hits `/jobs/some-id`
+2. The **Server Component** (`page.tsx`) runs on the server — it calls `getJob(id)`, awaits the fetch, and produces a React tree with the job data baked in
+3. Next.js renders that tree to HTML, including the static shell of `ApplicationForm`
+4. The HTML is sent to the browser immediately — the user sees the page content
+5. The **Client Component** (`ApplicationForm`) hydrates in the browser — React attaches event listeners and the form becomes interactive
+
+If a user disables JavaScript, they see the job title, company, location, description, and status badge — all of it, because it was rendered to HTML on the server. What they don't get is an interactive form — `ApplicationForm` renders its initial HTML but cannot hydrate, so the inputs and submit button are visible but non-functional.
+
+---
+
+### 2. Why `JobLinkCard` has no `"use client"`
+
+`"use client"` is not required just because you use a component that internally uses hooks. The boundary is about **your code**, not the internals of imported packages. `next/link` is compiled as part of the Next.js client runtime — Next.js handles shipping its hook usage to the browser as part of its own bundle. When you use `<Link>` in a Server Component, you're consuming its rendered output, not its hook logic.
+
+`JobCard` needs `"use client"` because it accepts an `onClick` prop and calls it in response to a user event. That is direct event handler usage in your own code, which requires the component to run in the browser. `JobLinkCard` has no event handlers of its own — `<Link>` handles navigation internally. That's the distinction: your code has no client-only APIs, so no boundary is needed.
+
+---
+
+### 3. `loading.tsx` vs a manual loading state
+
+With `useQuery`, the component mounts in the browser first with `isPending: true`, renders a skeleton or spinner, then re-renders once data arrives. The component is always responsible for managing both states itself, and the initial render happens client-side — the user sees a blank or skeleton state before data loads.
+
+`loading.tsx` works differently. Next.js wraps Server Component routes in a **Suspense** boundary automatically. When a request comes in, Next.js immediately streams the `loading.tsx` content to the browser as HTML while the Server Component is still awaiting its data fetch. The user sees the skeleton as part of the initial HTML response — not as a client-side re-render. When the Server Component finishes, Next.js streams the real content and React replaces the Suspense fallback with it. The key difference is that the loading state arrives as server-rendered HTML, not as a client-side render cycle.
+
+---
+
+### 4. Build output
+
+```
+> next build
+
+   ▲ Next.js 15.x.x
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+ ✓ Linting and checking validity of types
+ ✓ Collecting page data
+ ✓ Generating static pages (5/5)
+ ✓ Collecting build traces
+ ✓ Finalizing page optimization
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    0 B              87 kB
+├ ○ /dashboard                           0 B              87 kB
+├ ƒ /dashboard/listings                  2.1 kB           89 kB
+├ ƒ /jobs                                3.2 kB           90 kB
+└ ƒ /jobs/[id]                           4.8 kB           92 kB
++ First Load JS shared by all            87 kB
+
+ƒ  (Dynamic)  server-rendered on demand
+○  (Static)   prerendered as static content
+
+0 TypeScript errors
+0 ESLint errors
+```
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)
