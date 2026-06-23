@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { JobListing } from "../../types";
+import type { JobListing } from "../../../types";
 
 const jobs: JobListing[] = [
   {
@@ -38,7 +38,7 @@ const jobs: JobListing[] = [
     employmentType: "Contract",
     salaryMin: 30000,
     salaryMax: 50000,
-    postedAt  : new Date(Date.now() - 10 * 86400000).toISOString(),
+    postedAt: new Date(Date.now() - 10 * 86400000).toISOString(),
     isOpen: true,
     applicantCount: 6,
     description:
@@ -87,7 +87,35 @@ const jobs: JobListing[] = [
       "A six-month paid internship for final-year or recent computer science graduates. You'll rotate through FNB's product squads, contribute to real features under senior mentorship, and attend structured learning sessions each week.",
   },
 ];
+//Next.js calls this function when a GET request hits /api/jobs/[id]
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }// object next.js uses to pass route parameters to the handler
+) {
+  const { id } = await params;  // resolve once, up front
+  const job = jobs.find((j) => j.id === id);  // plain sync callback
+  if (!job) {
+    return NextResponse.json(
+      {
+        title: "Not Found",
+        detail: `No job with id '${id}' exists.`,
+        status: 404,
+      },
+      { status: 404 }
+    );
+  }
 
-export async function GET() {
-  return NextResponse.json(jobs);
+  return NextResponse.json(job);
+}
+
+// All other methods → 405
+export async function POST() {
+  return NextResponse.json(
+    {
+      title: "Method Not Allowed",
+      detail: "This endpoint only accepts GET requests.",
+      status: 405,
+    },
+    { status: 405, headers: { Allow: "GET" } }
+  );
 }

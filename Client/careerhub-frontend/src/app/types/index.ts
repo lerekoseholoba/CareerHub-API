@@ -14,6 +14,7 @@ export interface JobListing {
   postedAt : string;
   isOpen : boolean;
   applicantCount: number;
+  description: string; 
 }
 export interface PagedJobsResponse {
   data: JobListing[];
