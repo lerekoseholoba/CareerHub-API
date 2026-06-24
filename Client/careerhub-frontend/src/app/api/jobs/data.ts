@@ -11,7 +11,7 @@ export let jobs: JobListing[] = [
     salaryMax: 55000,
     postedAt: new Date().toISOString(),
     isOpen: true,
-    applicantCount: 12,
+    applicationCount: 12,
     description:
       "Build and maintain customer-facing web interfaces for Capitec's digital banking platform. You'll work in a cross-functional team delivering React-based features, collaborating closely with design and backend engineers.",
   },
@@ -25,7 +25,7 @@ export let jobs: JobListing[] = [
     salaryMax: 70000,
     postedAt: new Date().toISOString(),
     isOpen: true,
-    applicantCount: 0,
+    applicationCount: 0,
     description:
       "Design and scale the services powering South Africa's largest e-commerce platform. You'll own microservices in Node.js or Go, work with high-throughput data pipelines, and participate in on-call rotations.",
   },
@@ -39,7 +39,7 @@ export let jobs: JobListing[] = [
     salaryMax: 50000,
     postedAt: new Date(Date.now() - 10 * 86400000).toISOString(),
     isOpen: true,
-    applicantCount: 6,
+    applicationCount: 6,
     description:
       "Six-month contract analysing health and life insurance claim patterns. You'll use SQL and Python to surface insights for actuarial and product teams, and build Tableau dashboards consumed by senior leadership.",
   },
@@ -53,7 +53,7 @@ export let jobs: JobListing[] = [
     salaryMax: 40000,
     postedAt: new Date(Date.now() - 40 * 86400000).toISOString(),
     isOpen: true,
-    applicantCount: 3,
+    applicationCount: 3,
     description:
       "Part-time role (three days per week) shaping the experience of Nedbank's retail mobile app. Responsibilities include user research, wireframing, prototyping in Figma, and conducting usability testing sessions.",
   },
@@ -67,7 +67,7 @@ export let jobs: JobListing[] = [
     salaryMax: 90000,
     postedAt: new Date(Date.now() - 3 * 86400000).toISOString(),
     isOpen: false,
-    applicantCount: 18,
+    applicationCount: 18,
     description:
       "Own the CI/CD pipelines and Kubernetes infrastructure supporting Standard Bank's core banking services. You'll drive cloud migration initiatives on AWS, enforce security baselines, and mentor junior engineers on platform tooling.",
   },
@@ -81,7 +81,7 @@ export let jobs: JobListing[] = [
     salaryMax: 12000,
     postedAt: new Date(Date.now() - 60 * 86400000).toISOString(),
     isOpen: true,
-    applicantCount: 0,
+    applicationCount: 0,
     description:
       "A six-month paid internship for final-year or recent computer science graduates. You'll rotate through FNB's product squads, contribute to real features under senior mentorship, and attend structured learning sessions each week.",
   },

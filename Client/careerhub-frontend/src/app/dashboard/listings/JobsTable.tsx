@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { JobListing } from "../../types/index";
+import type { JobListing } from "../../types";
 import PostJobForm from "../../components/PostJobForm";
 
 type Props = {
@@ -19,6 +19,7 @@ export default function JobsTable({ jobs }: Props) {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             All Listings
           </h1>
+
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             {jobs.length} {jobs.length === 1 ? "listing" : "listings"}
           </p>
@@ -49,9 +50,11 @@ export default function JobsTable({ jobs }: Props) {
                 <th className="px-4 py-3">Company</th>
                 <th className="px-4 py-3">Location</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Applications</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
               {jobs.map((job) => (
                 <tr
@@ -61,12 +64,15 @@ export default function JobsTable({ jobs }: Props) {
                   <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
                     {job.title}
                   </td>
+
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                     {job.company}
                   </td>
+
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
                     {job.location}
                   </td>
+
                   <td className="px-4 py-3">
                     <span
                       className={
@@ -78,6 +84,11 @@ export default function JobsTable({ jobs }: Props) {
                       {job.isOpen ? "Open" : "Closed"}
                     </span>
                   </td>
+
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                    {job.applicationCount}
+                  </td>
+
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`/jobs/${job.id}`}
