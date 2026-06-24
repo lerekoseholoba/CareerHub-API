@@ -6,7 +6,7 @@ import ApplicationForm from "../../components/ApplicationForm";
 async function getJob(id: string): Promise<JobListing> {
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/v1/Jobs/${id}`,
-    { cache: "no-store" }
+    { next: { tags: ["jobs"] }}
   );
 
   if (res.status === 404) notFound();

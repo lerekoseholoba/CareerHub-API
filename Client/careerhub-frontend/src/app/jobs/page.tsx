@@ -6,7 +6,7 @@ async function getJobs(): Promise<JobListing[]> {
   //await new Promise((r) => setTimeout(r, 3000));
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/v1/Jobs`,
-    { cache: "no-store" }
+    { next: { tags: ["jobs"] }}
   );
 
   if (!res.ok) {
