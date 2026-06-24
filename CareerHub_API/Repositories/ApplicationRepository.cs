@@ -1,5 +1,6 @@
 using CareerHub_API.Data;
 using CareerHub_API.Models;
+using CareerHub_API.DTOs;
 using Microsoft.EntityFrameworkCore;
 
 namespace CareerHub_API.Repositories
@@ -55,6 +56,17 @@ namespace CareerHub_API.Repositories
         {
             _context.Applications.Update(application);
             await _context.SaveChangesAsync();
+        }
+        public async Task<IEnumerable<ApplicationStatsResponse>> GetApplicationStatsAsync()
+        {
+           return await _context.Applications
+               .GroupBy(a => a.JobListingId)
+               .Select(g => new ApplicationStatsResponse
+           {
+            JobId = g.Key,
+            ApplicationCount = g.Count()
+           })
+               .ToListAsync();
         }
     }
 }

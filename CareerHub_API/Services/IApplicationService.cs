@@ -9,5 +9,6 @@ namespace CareerHub_API.Services
         Task UpdateStatusAsync(Guid applicantId, Guid jobId, ApplicationStatus status);
         Task WithdrawAsync(Guid applicantId, Guid jobId, Guid currentUserApplicantId);
         Task<ApplicationResponse> UpdateStatusAsync(Guid applicantId,Guid jobId,UpdateApplicationStatusRequest request);
+        Task<IEnumerable<ApplicationStatsResponse>> GetApplicationStatsAsync();
     }
 }
