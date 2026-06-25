@@ -13,7 +13,8 @@ export interface JobListing {
   salaryMax: number;
   postedAt : string;
   isOpen : boolean;
-  applicantCount: number;
+  applicationCount: number;
+  description: string; 
 }
 export interface PagedJobsResponse {
   data: JobListing[];

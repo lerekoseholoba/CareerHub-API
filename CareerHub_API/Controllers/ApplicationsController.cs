@@ -80,5 +80,12 @@ namespace CareerHub_API.Controllers
           });
         }
        }
+       [HttpGet("stats")]
+       [AllowAnonymous]
+       public async Task<IActionResult> GetApplicationStats()
+       {
+          var stats = await _applicationService.GetApplicationStatsAsync();
+          return Ok(stats);
+       }
     }
 }

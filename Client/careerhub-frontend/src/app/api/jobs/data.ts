@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
 import type { JobListing } from "../../types";
 
-const jobs: JobListing[] = [
+export let jobs: JobListing[] = [
   {
     id: "a1",
     title: "Frontend Developer",
@@ -38,7 +37,7 @@ const jobs: JobListing[] = [
     employmentType: "Contract",
     salaryMin: 30000,
     salaryMax: 50000,
-    postedAt  : new Date(Date.now() - 10 * 86400000).toISOString(),
+    postedAt: new Date(Date.now() - 10 * 86400000).toISOString(),
     isOpen: true,
     applicationCount: 6,
     description:
@@ -49,7 +48,7 @@ const jobs: JobListing[] = [
     title: "UX Designer",
     company: "Nedbank",
     location: "Sandton",
-    employmentType : "PartTime",
+    employmentType: "PartTime",
     salaryMin: 25000,
     salaryMax: 40000,
     postedAt: new Date(Date.now() - 40 * 86400000).toISOString(),
@@ -87,7 +86,3 @@ const jobs: JobListing[] = [
       "A six-month paid internship for final-year or recent computer science graduates. You'll rotate through FNB's product squads, contribute to real features under senior mentorship, and attend structured learning sessions each week.",
   },
 ];
-
-export async function GET() {
-  return NextResponse.json(jobs);
-}

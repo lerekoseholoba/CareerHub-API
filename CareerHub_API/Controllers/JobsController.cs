@@ -155,7 +155,7 @@ public class JobsController : ControllerBase
         }
     }
 
-    [Authorize(Roles = "Employer")]
+    //[Authorize(Roles = "Employer")]
     [EnableRateLimiting("post-listing")]
     [HttpPost]
     public async Task<IActionResult> CreateJob([FromBody] CreateJobRequest request)

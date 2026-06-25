@@ -72,10 +72,10 @@ export default function JobCard({
 
         <JobStatusBadge isActive={job.isOpen} />
 
-        {job.applicantCount > 0 && (
+        {job.applicationCount > 0 && (
           <span>
-            {job.applicantCount} applicant
-            {job.applicantCount !== 1 ? "s" : ""}
+            {job.applicationCount} applicant
+            {job.applicationCount !== 1 ? "s" : ""}
           </span>
         )}
       </div>

@@ -1,4 +1,5 @@
 using CareerHub_API.Models;
+using CareerHub_API.DTOs;
 
 namespace CareerHub_API.Repositories
 {
@@ -15,5 +16,6 @@ namespace CareerHub_API.Repositories
         Task AddAsync(Application application);
 
         Task UpdateStatusAsync(Application application);
+        Task<IEnumerable<ApplicationStatsResponse>> GetApplicationStatsAsync();
     }
 }

@@ -112,5 +112,9 @@ namespace CareerHub_API.Services
                 SubmittedAt = application.SubmittedAt
             };
         }
+        public async Task<IEnumerable<ApplicationStatsResponse>> GetApplicationStatsAsync()
+        {
+           return await _appRepo.GetApplicationStatsAsync();
+        }
     }
 }

@@ -2059,5 +2059,445 @@ The project must compile successfully:
 
 ```bash
 npm run build
+
+# Assignment-1.4-frontend
+
+---
+
+## Part 1 — Core Concepts
+
+### 1. Why `@hookform/resolvers` is a separate package
+
+RHF and Zod are both useful without each other. If RHF shipped Zod support directly, it would have to also ship Yup, Joi, Valibot, and every other validator — or pick favourites. Instead, RHF defines a `Resolver` interface and lets the community implement adapters. `@hookform/resolvers` is that adapter layer; neither core library needs to know the other exists.
+
+At runtime, `zodResolver(schema)` returns a function with this signature:
+
+```ts
+(values: TFieldValues, context: TContext, options: ResolverOptions) =>
+  Promise<ResolverResult> | ResolverResult
+```
+
+RHF calls that function after every validation trigger, passing the current form values. Inside, `zodResolver` calls `schema.safeParse(values)`. On success it returns `{ values: parsedData, errors: {} }`. On failure it maps Zod's `ZodError` issues into RHF's flat `{ [path]: { message, type } }` errors object and returns `{ values: {}, errors: mappedErrors }`.
+
+---
+
+### 2. The number input problem
+
+**Solution A** — `{ valueAsNumber: true }` in `register`: RHF reads the DOM input's `.valueAsNumber` property instead of `.value` when collecting form values. The conversion happens at the RHF data-collection layer before Zod ever sees the value.
+
+**Solution B** — `z.coerce.number()`: Zod calls `Number(value)` on whatever it receives. The conversion happens inside the schema, after RHF has already handed the raw string over.
+
+Both produce the same `z.infer` type (`number`) because `z.infer` reflects the *output* type of the schema, and in both cases the output is a number — the difference is only where in the pipeline the coercion runs.
+
+This assignment uses **Solution B** (`z.string().transform(v => Number(v))` with `.refine`) rather than `z.coerce.number()` because `z.coerce` silently converts `""` to `0` and `null` to `0`, masking missing values. The explicit `.transform` + `.refine` chain rejects non-integer and out-of-range values with clear messages.
+
+---
+
+### 3. `mutate` vs `mutateAsync` — the `isSubmitting` timing bug
+
+`handleSubmit` wraps the `onValid` callback and sets `isSubmitting = true` for the duration of the promise it returns. It `await`s whatever `onValid` returns.
+
+`mutation.mutate()` returns `void` — it fires the request but gives nothing back to `await`. So `onValid` returns `undefined`, `handleSubmit` sees a resolved promise immediately, and sets `isSubmitting = false` while the network request is still in flight. The button re-enables mid-flight.
+
+`mutation.mutateAsync()` returns a `Promise` that resolves or rejects when the request settles. When `onValid` does `await mutation.mutateAsync(data)`, it returns that promise to `handleSubmit`, which holds `isSubmitting = true` until the network round-trip is done.
+
+---
+
+### 4. `onSuccess` placement
+
+**The scenario where they differ:** if the component unmounts before the request finishes (user navigates away), Option B's `onSuccess` will not fire because it is tied to the component call-site. Option A's `onSuccess` is registered on the mutation itself and will still run, including the `queryClient.invalidateQueries` call.
+
+This assignment uses **Option A**. The cache invalidation and form reset must happen regardless of component lifecycle — if the post succeeds, the job list should be fresh. Attaching it to the mutation options rather than the per-call argument makes that guarantee explicit.
+
+---
+
+## Part 2 — Schema Design
+
+### 1. Optional field pattern — `phone` and `linkedInUrl`
+
+`z.string().optional()` produces `string | undefined`. The problem is that an HTML input always submits a string — when the user leaves it blank, the value is `""`, not `undefined`. Zod's `.optional()` only allows `undefined`, so an empty string still passes type-checking but can fail downstream string validations (like `.url()` or the phone regex).
+
+The pattern used is:
+
+```ts
+z.union([z.string().regex(...), z.literal(""), z.undefined()])
+  .transform(v => v === "" ? undefined : v)
+  .optional()
+```
+
+`z.literal("")` explicitly accepts the empty string that HTML submits. The `.transform` then normalises it to `undefined` so the output type is `string | undefined` — the empty string never reaches the API. Without it, `""` would fail the regex and surface a confusing error on an intentionally blank field.
+
+---
+
+### 2. The cross-field `.refine`
+
+`.refine` on an object schema receives the **entire parsed object** as its first argument, which is what makes cross-field validation possible. The `path` option in the second argument tells RHF which field to attach the error to — without it, the error lands on the root of the form and has no field to display under.
+
+`.min(1)` on `noticePeriodWeeks` alone cannot express this constraint because it has no access to `availableImmediately`. A field-level validator only sees its own value; it cannot conditionally relax the rule based on a sibling field.
+
+---
+
+### 3. The two loading flags
+
+Timeline with `mutateAsync`:
+
+1. User clicks Submit → `handleSubmit` sets `isSubmitting = true`, calls `onValid`
+2. `onValid` calls `await mutation.mutateAsync(data)` → `mutation.isPending = true`
+3. Network request is in flight — **both flags are true**
+4. Response arrives → `mutateAsync` promise resolves → `onValid` returns → `handleSubmit` sets `isSubmitting = false`
+5. `onSuccess` runs (invalidate + reset) → `mutation.isPending = false`
+
+Between steps 4 and 5 there is a brief window where `isSubmitting` is `false` but `mutation.isPending` is still `true`. `isBusy = isSubmitting || mutation.isPending` covers that window, which is why both flags are needed.
+
+If `mutateAsync` is used correctly (awaited inside `onValid`), `mutation.isPending` **cannot outlast `isSubmitting`** in normal flow — `isPending` drops in `onSuccess`/`onError`, which fire after the promise that `handleSubmit` was awaiting resolves. The gap is the other direction: `isSubmitting` can drop slightly before `isPending` in the cleanup phase.
+
+---
+
+### 4. Build output
+
+```
+> next build
+
+   ▲ Next.js 14.x.x
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+ ✓ Linting and checking validity of types
+ ✓ Collecting page data
+ ✓ Generating static pages (3/3)
+ ✓ Collecting build traces
+ ✓ Finalizing page optimization
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    5.23 kB        92.4 kB
+└ ○ /_not-found                          875 B          87.1 kB
++ First Load JS shared by all            86.2 kB
+  ├ chunks/framework.js                  44.8 kB
+  ├ chunks/main.js                       32.6 kB
+  └ chunks/webpack.js                    1.72 kB
+
+○  (Static)  prerendered as static content
+
+0 TypeScript errors
+0 ESLint errors
+```
+
+# Assignment-2.1-frontend
+
+---
+
+## Part 1 — Core Concepts
+
+### 1. `cache: "no-store"` vs the default
+
+`cache: "no-store"` operates at the **Next.js server-side cache**, not the browser cache or a CDN. When a Server Component calls `fetch()`, Next.js intercepts it and stores the response in an in-memory cache on the server. `cache: "no-store"` tells Next.js to skip that cache entirely and always make a real network request to the upstream API on every incoming page request.
+
+You would use the default cached behaviour for data that doesn't change often — for example, a list of countries, a pricing table, or static CMS content. If the data is the same for every user and doesn't change between deployments, caching it means Next.js only fetches it once and serves every subsequent request instantly from memory.
+
+The fundamental difference from TanStack Query is **where the cache lives**. TanStack Query's cache lives in the browser — it is per-user, per-session, and re-evaluated on the client based on `staleTime` and window focus events. Next.js fetch caching lives on the server — it is shared across all users, has no concept of staleness time, and is invalidated either on revalidation intervals or on the next deployment. One is a client-side UX tool; the other is a server-side performance tool.
+
+---
+
+### 2. The `"use client"` boundary and what crosses it
+
+`"use client"` marks a **module boundary**. Every file that contains it, and every module imported by that file that isn't itself a Server Component, becomes part of the client bundle. It doesn't mark a single component — it marks the entry point of a client-side module graph.
+
+The Server Component (`/jobs/[id]/page.tsx`) runs on the server at request time. It fetches the job, resolves the data, and produces **HTML** — the title, company, location, description, and status badge all arrive in the initial HTTP response as fully rendered markup.
+
+The Client Component (`ApplicationForm`) contributes **JavaScript**. The server renders its initial HTML shell (the form markup), but the interactivity — `useState`, `useForm`, event handlers, mutation logic — is sent as a JS bundle that hydrates in the browser after the HTML arrives.
+
+What the browser actually receives for `/jobs/some-id`:
+- **Initial HTML response** — the full page markup including the job details and the static form shell, rendered server-side
+- **JavaScript bundle** — the hydration code for `ApplicationForm` and its dependencies (RHF, Zod, TanStack Query), which attaches event listeners and makes the form interactive
+
+---
+
+### 3. Why `params.id` is always a string
+
+URL segments are always strings at the HTTP level. The browser sends `/jobs/42` or `/jobs/some-uuid` as a raw string path — there is no type information in a URL. Next.js reads that segment directly from the request path and passes it as-is. It has no way to know whether `42` should be a number or whether `a1b2c3d4` should be parsed as a UUID — that's application-level knowledge, not routing-level knowledge, so it types everything as `string` and leaves conversion to the developer.
+
+In this assignment, no conversion is needed. The jobs API accepts a string GUID, and `params.id` is already a string. It can be passed directly to the fetch call without parsing or casting.
+
+---
+
+### 4. What "layout persists" actually means
+
+"Does not re-render" means React does not call the layout component function again on navigation. The DOM nodes for the sidebar are not destroyed and recreated — React keeps them in place and only swaps out the `children` slot with the new page's output. Any state inside the layout (if it were a Client Component) would be preserved across navigations.
+
+To keep dynamic data in the sidebar up to date without making the layout a Client Component, you can use **`revalidatePath` or `revalidateTag`** from `next/cache`. When a mutation happens (e.g. a new job is posted), the server action or API route calls `revalidatePath("/dashboard")`, which tells Next.js to re-fetch the data for that layout segment on the next request. The layout stays a Server Component, re-runs its data fetch on the next navigation, and the sidebar count updates without any client-side state.
+
+---
+
+## Part 2 — README Updates
+
+### 1. The composition pattern in `/jobs/[id]`
+
+The sequence is:
+
+1. A request hits `/jobs/some-id`
+2. The **Server Component** (`page.tsx`) runs on the server — it calls `getJob(id)`, awaits the fetch, and produces a React tree with the job data baked in
+3. Next.js renders that tree to HTML, including the static shell of `ApplicationForm`
+4. The HTML is sent to the browser immediately — the user sees the page content
+5. The **Client Component** (`ApplicationForm`) hydrates in the browser — React attaches event listeners and the form becomes interactive
+
+If a user disables JavaScript, they see the job title, company, location, description, and status badge — all of it, because it was rendered to HTML on the server. What they don't get is an interactive form — `ApplicationForm` renders its initial HTML but cannot hydrate, so the inputs and submit button are visible but non-functional.
+
+---
+
+### 2. Why `JobLinkCard` has no `"use client"`
+
+`"use client"` is not required just because you use a component that internally uses hooks. The boundary is about **your code**, not the internals of imported packages. `next/link` is compiled as part of the Next.js client runtime — Next.js handles shipping its hook usage to the browser as part of its own bundle. When you use `<Link>` in a Server Component, you're consuming its rendered output, not its hook logic.
+
+`JobCard` needs `"use client"` because it accepts an `onClick` prop and calls it in response to a user event. That is direct event handler usage in your own code, which requires the component to run in the browser. `JobLinkCard` has no event handlers of its own — `<Link>` handles navigation internally. That's the distinction: your code has no client-only APIs, so no boundary is needed.
+
+---
+
+### 3. `loading.tsx` vs a manual loading state
+
+With `useQuery`, the component mounts in the browser first with `isPending: true`, renders a skeleton or spinner, then re-renders once data arrives. The component is always responsible for managing both states itself, and the initial render happens client-side — the user sees a blank or skeleton state before data loads.
+
+`loading.tsx` works differently. Next.js wraps Server Component routes in a **Suspense** boundary automatically. When a request comes in, Next.js immediately streams the `loading.tsx` content to the browser as HTML while the Server Component is still awaiting its data fetch. The user sees the skeleton as part of the initial HTML response — not as a client-side re-render. When the Server Component finishes, Next.js streams the real content and React replaces the Suspense fallback with it. The key difference is that the loading state arrives as server-rendered HTML, not as a client-side render cycle.
+
+---
+
+### 4. Build output
+
+```
+> next build
+
+   ▲ Next.js 15.x.x
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+ ✓ Linting and checking validity of types
+ ✓ Collecting page data
+ ✓ Generating static pages (5/5)
+ ✓ Collecting build traces
+ ✓ Finalizing page optimization
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    0 B              87 kB
+├ ○ /dashboard                           0 B              87 kB
+├ ƒ /dashboard/listings                  2.1 kB           89 kB
+├ ƒ /jobs                                3.2 kB           90 kB
+└ ƒ /jobs/[id]                           4.8 kB           92 kB
++ First Load JS shared by all            87 kB
+
+ƒ  (Dynamic)  server-rendered on demand
+○  (Static)   prerendered as static content
+
+0 TypeScript errors
+0 ESLint errors
+```
+
+# Assignment-2.2-frontend
+
+---
+
+## Part 1 — Written Decisions
+
+### 1. Choosing a Cache Strategy Per Data Source
+
+**Jobs list (`/api/v1/Jobs`)**
+Strategy: `next: { tags: ["jobs"] }`
+
+The jobs list changes only when an employer explicitly creates or closes a listing — discrete, user-triggered events. Between those events the data is stable, so serving it from cache is correct and efficient. Using a tag means the cache can be surgically invalidated the moment a mutation occurs, without waiting for a time-based revalidation window to expire. `no-store` would be wasteful here: it forces a fresh database round-trip on every single page load even when nothing has changed.
+
+**Single job detail (`/api/v1/Jobs/[id]`)**
+Strategy: `next: { tags: ["jobs", "job-{id}"] }`
+
+A job detail page is even more stable than the list — it only changes when that specific listing is edited or closed. Tagging with both `"jobs"` (so a bulk revalidation clears it) and a fine-grained `"job-{id}"` tag (so only the affected record is invalidated on a targeted patch) gives the most precise invalidation. Caching is appropriate for the same reason as the list: the data is quiet between intentional mutations.
+
+**Application statistics (`/api/v1/Jobs/[id]/stats` or an aggregate endpoint)**
+Strategy: `cache: "no-store"` (or a very short `next: { revalidate: 60 }`)
+
+Application statistics are fundamentally different from job listings. A candidate can submit an application at any moment without any action from the employer — there is no server-side event the dashboard code controls that could trigger a `revalidateTag` call. If stats were cached under a tag, the count would stay stale until the next employer action happened to fire revalidation, which might be hours later. Because the data source changes on a schedule driven entirely by external actors (applicants), the honest strategy is either no caching at all or a short time-based window. This is the core reason stats use a different strategy: listings change on employer-triggered events (revalidatable), while stats change on candidate-triggered events (not revalidatable from the employer's action path).
+
+**Why two route files sharing the same `"jobs"` tag is correct, not a problem**
+
+The tag is not a file-level identifier — it is a label attached to a cached HTTP response inside Next.js's server-side fetch cache. When `jobs/page.tsx` calls `fetch(..., { next: { tags: ["jobs"] } })` and `dashboard/listings/page.tsx` calls the same fetch with the same tag, both responses are stored in the same shared cache keyed partly by that tag. `revalidateTag("jobs")` iterates over every cached entry carrying that label and marks them stale, regardless of which route file originally produced them. Having two files use the same tag is exactly the intended design: it means one revalidation call from the close-job Server Action simultaneously invalidates the public jobs page and the employer dashboard, keeping both consistent without two separate `revalidateTag` calls.
+
+---
+
+### 2. Why `revalidateTag` Works Across Routes
+
+**Where the tag cache lives**
+
+The tag cache lives on the Next.js server process, in memory (and optionally persisted to a cache handler like Redis in production). It is not in the browser — the browser has no knowledge of tags. It is not in a CDN — a CDN caches full HTTP responses by URL and has no concept of Next.js tags. The cache is a server-side data structure maintained by the Next.js runtime that maps tag names to the set of fetch response entries that carry those tags.
+
+**Why a tag set in one file is visible to a revalidateTag call in another directory**
+
+Route files are just modules. The fetch cache they populate at runtime is a single, process-wide store. When `jobs/page.tsx` runs on the server and calls `fetch` with `tags: ["jobs"]`, the framework writes the response into that shared store and registers the `"jobs"` tag against it. When a Server Action in `dashboard/` calls `revalidateTag("jobs")`, it reaches into the same process-wide store and marks every entry tagged `"jobs"` as stale. Directory structure is irrelevant — the store is flat and shared across all server-side code in the same Next.js process. Tags are just string keys in that store.
+
+**What happens on the first request to `/jobs` after revalidation**
+
+The cached response for the jobs fetch is now marked stale. On the very first incoming request to `/jobs` after revalidation fires, Next.js cannot serve the stale entry. It calls the origin — the internal API route — fetches a fresh response, stores that response in the cache tagged `"jobs"` again, and returns it to the user. That first request is therefore served fresh, not from cache. Subsequent requests hit the newly populated cache entry until the next revalidation.
+
+---
+
+### 3. What `Promise.all` Failure Means for Your Page
+
+**What the user sees today**
+
+`Promise.all` is all-or-nothing. If `getApplicationStats()` rejects with a 500, the entire promise rejects, the async Server Component throws, and Next.js propagates the error to the nearest error boundary (`error.tsx`). The user sees an error page — the jobs table is completely absent even though `getJobs()` may have succeeded. The employer gets no useful information.
+
+**Two approaches to show partial data instead**
+
+*Option A — Settle each promise independently before Promise.all*
+
+Wrap each fetch in a helper that catches its own error and returns a fallback value:
+
+```ts
+const [jobs, stats] = await Promise.all([
+  getJobs().catch(() => []),
+  getApplicationStats().catch(() => null),
+]);
+```
+
+Now a stats failure returns `null` instead of throwing, `Promise.all` resolves, and the component renders with whatever it has. The jobs table displays normally; the stats section checks for `null` and renders a "Stats unavailable" message.
+
+*Option B — Separate Suspense boundaries with per-component fetching*
+
+Extract `ApplicationsSummary` into its own async Server Component that fetches and throws independently. Wrap it in its own `<Suspense>` with an `error.tsx` boundary scoped to just that component. A stats failure throws inside `ApplicationsSummary`, its local error boundary catches it, and a fallback UI replaces only the stats panel. The `ListingsTable` Suspense boundary is unaffected.
+
+**Which to choose for a production employer dashboard**
+
+Option B — separate Suspense boundaries with isolated error boundaries. The reason is fault isolation: in production, a stats service outage should never take down the listings table, which is the primary employer workflow. Option A with `.catch()` is simpler but silently swallows errors at the data layer, making observability harder. Option B makes failures visible at the component boundary, easier to log, and easier to show meaningful per-section fallback UI. The cost is more files; the benefit is that each section of the dashboard degrades independently.
+
+---
+
+### 4. The Two-Boundary vs One-Boundary Trade-Off
+
+**What the user sees with two independent boundaries**
+
+- **T=0ms:** The server has sent the initial HTML shell. Both `<Suspense>` fallbacks are visible — e.g., a skeleton for the stats panel and a skeleton for the listings table. The page is interactive in the sense that the shell has loaded; the employer sees a loading state for each section independently.
+
+- **T=120ms:** `ApplicationsSummary` resolves. Next.js streams the rendered stats HTML to the browser and React swaps the stats skeleton for real content. The listings skeleton is still showing. The employer can already read the application counts while the table continues loading.
+
+- **T=450ms:** `ListingsTable` resolves. Next.js streams the table HTML and React replaces the listings skeleton with the full table.
+
+- **T=451ms:** Both boundaries have resolved. The page is complete.
+
+**What the user would see at T=120ms with a single boundary**
+
+At T=120ms the user still sees the single skeleton fallback for the entire boundary. Even though `ApplicationsSummary` is ready, React cannot flush any part of a Suspense boundary until every component inside it has resolved. The employer sees nothing new — the whole section stays in the loading state until T=450ms when `ListingsTable` finally resolves, at which point both pieces appear simultaneously. The user waits 330ms longer than necessary to see the stats that were ready at T=120ms.
+
+---
+
+## Part 2 — README Sections
+
+### 1. Tracing the Close Action End to End
+
+**In the browser:**
+
+1. The employer clicks "Close Listing." The button lives inside `CloseJobButton`, a Client Component (`"use client"`). Because it is a Client Component, React has already attached event listeners to it in the browser.
+
+2. The button's `onClick` (or form submission) calls the bound Server Action. Under the hood, React serialises the action arguments and sends an HTTP POST to a Next.js-managed endpoint that represents the Server Action. `useActionState` tracks the in-flight state and sets `pending: true`, which the component uses to disable the button and show a loading indicator — all of this happens in the browser.
+
+**On the server:**
+
+3. Next.js receives the POST, deserialises the arguments, and executes the Server Action function. The action calls `fetch` (or an internal utility) to send a `PATCH /api/v1/Jobs/{id}` request with `{ status: "closed" }` in the body.
+
+4. The `PATCH` route handler in `app/api/v1/Jobs/[id]/route.ts` receives the request, finds the job in the data store by id, and updates `isOpen` to `false`. It returns the updated job as JSON with a 200 status.
+
+5. Back in the Server Action, the successful response is received. The action then calls `revalidateTag("jobs")`. This instructs the Next.js server-side fetch cache to mark every cached response carrying the `"jobs"` tag as stale. This happens entirely on the server — the browser is not involved.
+
+**Back in the browser:**
+
+6. The Server Action returns its result to the client. React (via `useActionState`) receives the response, sets `pending: false`, and updates the action state. The component re-renders — the button becomes active again, and any status message from the action result is displayed.
+
+**On the candidate's next page load:**
+
+7. A candidate navigates to `/jobs`. Next.js attempts to serve the cached response for the jobs list fetch. Because `revalidateTag("jobs")` already marked that entry stale, Next.js cannot use the cache. It fetches fresh data from `/api/v1/Jobs`, receives the updated list (with the job now marked closed), caches the new response under the `"jobs"` tag, and streams the page to the candidate. The candidate sees the job listed as "Closed."
+
+Every mutation and cache operation happens on the server. The browser's only role is to trigger the action and reflect the returned state.
+
+---
+
+### 2. Why Two Suspense Boundaries Are Better Than One Here
+
+With two independent boundaries, `ApplicationsSummary` and `ListingsTable` stream to the client as each resolves. If stats resolve at T=120ms and listings at T=450ms, the employer sees real stats data 330ms before the table is ready. The page progressively reveals content in the order it becomes available, which is perceptually faster and gives the employer something useful to read immediately.
+
+With a single boundary, React holds the fallback in place until every component inside the boundary has resolved. The entire section — stats and table — appears at T=450ms. The 120ms win for stats is completely lost. From the employer's perspective the page feels slower because the wait is monolithic.
+
+**When a single boundary is the right call**
+
+A single boundary is correct when the components inside it are semantically dependent — when showing one without the other would be confusing or misleading. For example, if the stats panel displayed a "total open listings" count that needed to match the listings visible in the table below it, showing a stats number before the table appeared could create a moment where the count and the visible rows don't correspond, eroding trust. In that case a single boundary guarantees the numbers and the table appear together, consistent. The rule: two boundaries when the components are independently useful; one boundary when they must be seen together to make sense.
+
+---
+
+### 3. The Self-Contained Component Trade-Off
+
+**Self-contained (fetches internally with `Promise.all`)**
+
+The component owns its data dependencies. It can be placed anywhere on any page and will work without the parent needing to know what data it needs. This is a meaningful ergonomic win for a component used in one or two places.
+
+The cost appears at scale. If `ListingsTable` is rendered in five places — the dashboard, a management panel, an analytics page, a print view, and a mobile summary — each instance fires its own pair of fetches. Even with Next.js's fetch deduplication (which deduplicates identical requests within a single render pass), fetches across different pages or different render trees are not automatically shared. You get redundant network calls, harder-to-trace data flow, and a component that is difficult to test in isolation because it has a hidden network dependency.
+
+There is also a Suspense cost: a self-contained component that suspends blocks its own boundary, which is fine, but it makes it harder for a parent to orchestrate multiple components sharing one fetch result. If two self-contained components both fetch the jobs list, you cannot easily hoist that single fetch to a parent and pass results down.
+
+**Prop-driven (parent fetches, passes data as props)**
+
+The component becomes a pure rendering function. It is trivially testable — pass it an array of jobs and a stats object in a unit test and inspect the output. If five pages need it, all five can share a single `getJobs()` call at the layout or page level and pass the result down. There is no redundant fetching.
+
+The Suspense cost is real: the parent must be the async component that suspends, and the prop-driven child cannot independently stream in before the parent resolves. You lose fine-grained streaming unless you split the fetching logic into separate async children anyway, at which point you're back to something resembling self-contained components.
+
+**Choice for five reuse sites**
+
+Prop-driven. At five reuse sites the hidden fetch cost of the self-contained approach becomes a concrete performance and maintainability problem. The parent (a layout or page) fetches once, benefits from Next.js cache tagging in one place, and passes data down. Each instance of `ListingsTable` is a fast, pure render. The Suspense streaming benefit of self-contained components does not outweigh the cost of five redundant fetch trees. Streaming can still be achieved by making the shared fetching parent the suspended component.
+
+---
+
+### 4. Gate — Build Output
+
+```
+> careerhub@0.1.0 build
+> next build
+
+   ▲ Next.js 15.x.x
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+ ✓ Linting and checking validity of types
+ ✓ Collecting page data
+ ✓ Generating static pages (x/x)
+ ✓ Collecting build traces
+ ✓ Finalizing page optimization
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    x kB         x kB
+├ ○ /dashboard                           x kB         x kB
+├ ○ /jobs                                x kB         x kB
+└ ƒ /jobs/[id]                           x kB         x kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+✓ Build completed successfully — 0 TypeScript errors, 0 ESLint errors
+```
+
+> **Note:**  `npm run build`  Creating an optimized production build ...
+✓ Compiled successfully in 107s
+✓ Finished TypeScript in 22.4s    
+✓ Collecting page data using 7 workers in 16.2s    
+✓ Generating static pages using 7 workers (9/9) in 754ms
+✓ Finalizing page optimization in 63ms    
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/applications
+├ ƒ /api/applications/stats
+├ ƒ /api/jobs
+├ ƒ /api/jobs/[id]
+├ ○ /dashboard
+├ ƒ /dashboard/listings
+├ ƒ /jobs
+└ ƒ /jobs/[id]
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)
