@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CareerHub_API.Migrations
 {
     [DbContext(typeof(CareerHubDbContext))]
-    [Migration("20260622185604_InitialData")]
-    partial class InitialData
+    [Migration("20260628173408_AddEmploymentTypeToJobListing")]
+    partial class AddEmploymentTypeToJobListing
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

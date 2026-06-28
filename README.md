@@ -2499,5 +2499,311 @@ Route (app)
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
 
+# Assignment 2.3 Frontend — CareerHub Auth, State, and Architecture
+
+---
+
+## Part 1 — Mapping CareerHub Roles to Route Protection Rules
+
+### Route Access Matrix
+
+| Route | Who Can Access | Unauthorised Behaviour | Handled In |
+|---|---|---|---|
+| `/jobs` | Anyone (public) | N/A — no restriction | N/A |
+| `/jobs/[id]` | Anyone (public) | N/A — no restriction | N/A |
+| `/login` | Unauthenticated only | Authenticated users redirect to their dashboard | Middleware |
+| `/dashboard` | Employer only | Unauthenticated → `/login`; Candidate → `/jobs` | Split: auth check in middleware, role check in page |
+| `/dashboard/listings` | Employer only | Same as `/dashboard` | Split: auth check in middleware, role check in page |
+
+---
+
+### Why Redirecting an Unauthenticated Employer to `/login` and Redirecting an Authenticated Candidate Away from `/dashboard` Are Fundamentally Different Problems
+
+These two scenarios look similar on the surface — both involve a user who should not be at `/dashboard` — but they differ in kind, not just in degree.
+
+**Redirecting an unauthenticated user to `/login`** is a *presence check*. The session does not exist at all. Middleware can make this determination without knowing anything about roles, because it only needs to ask: "is there a session token?" This check is cheap, stateless, and identical for every protected route. It belongs in middleware because middleware runs before the page is rendered, at the edge, and can short-circuit the request before any data-fetching begins. There is no reason to let the request reach the React tree at all.
+
+**Redirecting an authenticated candidate away from `/dashboard`** is an *authorisation check*. A session exists — the user is legitimately logged in — but their role does not entitle them to this resource. This is a semantic decision: "you are who you say you are, but you are not allowed here." This check requires reading the session object and inspecting the `role` field. While it could be done in middleware, there is a practical reason to handle the role boundary at the page level: role-based rules are application-specific and may involve nuance (e.g., an admin candidate who has temporary employer access, or a future third role). Keeping them close to the component that owns the resource makes that logic easier to read, test, and evolve. Middleware is best kept simple and fast; pushing complex authorisation logic into it makes the matcher rules harder to maintain.
+
+**In short:** unauthenticated → middleware (identity is absent). Wrong role → page component (identity is present but insufficient).
+
+---
+
+## Part 2 — The Session Object Design
+
+### What Goes on the Session Object and What Is Deliberately Left Off
+
+**Included:**
+- `id` — needed to scope database queries (e.g., fetching only this user's listings)
+- `email` — needed for display in the nav bar and account settings
+- `role` — `"candidate"` or `"employer"`; needed on every route guard and in every conditional render
+
+**Deliberately excluded:**
+- Password hash — never leaves the server, never touches the client
+- Full profile data (bio, CV URL, company description) — fetched on demand by the pages that need it, not cached in the session
+- Permissions arrays or feature flags — premature; not needed at this stage
+
+### The Cost of Putting Too Much on the Session
+
+The session object is serialised into the JWT, which is stored in a cookie and sent with every request. Bloating it has three costs:
+
+1. **Cookie size** — browsers cap cookies at ~4 KB. A fat JWT can exceed this and silently fail.
+2. **Stale data** — anything embedded in the JWT is only as fresh as the last sign-in or `update()` call. A user's profile bio that changes in the database will not be reflected in the session until the token is rotated.
+3. **Over-exposure** — the JWT is readable (though not writable) by client-side JavaScript unless `httpOnly` is set correctly. Less on the token means a smaller blast radius if it is ever mishandled.
+
+### What Breaks If Role Is on the JWT but Not Mapped to the Session
+
+The `session` callback receives the `token` (JWT) as a parameter but does not automatically forward its fields to the session object returned to the application. If you put `role` on the token in the `jwt` callback but never write `session.user.role = token.role` in the `session` callback, then:
+
+- `token.role` exists and is correct
+- `session.user.role` is `undefined`
+- Every call to `auth()` in Server Components and every call to `useSession()` in Client Components returns a session with no role
+- All role guards silently fail — they evaluate `undefined === "employer"` as `false`, so every user is treated as unauthorised or as a candidate
+
+### The Exact Three-Step Relay
+
+**Step 1 — `authorize` (credentials provider)**
+
+```ts
+async authorize(credentials) {
+  // Mock users — no real backend
+  const users = [
+    { id: "1", email: "alice@example.com", password: "pass", role: "candidate" },
+    { id: "2", email: "bob@example.com",   password: "pass", role: "employer"  },
+  ];
+  const user = users.find(
+    u => u.email === credentials.email && u.password === credentials.password
+  );
+  if (!user) return null;
+  // Return shape becomes the `user` parameter in the jwt callback
+  return { id: user.id, email: user.email, role: user.role };
+}
+```
+
+**Step 2 — `jwt` callback**
+
+```ts
+async jwt({ token, user }) {
+  // `user` is only populated on the initial sign-in; persist role onto the token
+  if (user) {
+    token.id   = user.id;
+    token.role = user.role;
+  }
+  return token;
+}
+```
+
+**Step 3 — `session` callback**
+
+```ts
+async session({ session, token }) {
+  // Explicitly map from token → session so the app can read it
+  session.user.id   = token.id   as string;
+  session.user.role = token.role as "candidate" | "employer";
+  return session;
+}
+```
+
+After step 3, every `await auth()` call anywhere in the application returns `session.user.role` correctly.
+
+---
+
+## Part 3 — Choosing the State Tool for Job Filters
+
+### Filter Tool Decisions
+
+| Filter | Tool | Reason |
+|---|---|---|
+| Keyword search | `nuqs` | Shareable, bookmarkable, survives refresh |
+| Location | `nuqs` | Same — a filtered location view is a meaningful URL |
+| Status toggle (Open / All) | `useState` | UI-only preference; not worth polluting the URL |
+
+---
+
+### Detailed Justifications
+
+**Keyword search → `nuqs`**
+
+The keyword is the most important filter. A user who searches for "React developer London" has found a meaningful result set they may want to return to or share with a colleague. With `useState`, refreshing the page clears the search and the URL gives no indication of what was displayed. With `nuqs`, the keyword lives in `?keyword=React+developer+London`. The page can be bookmarked, shared, and navigated to directly. Server Components can also read the search param without any client-side hydration delay, because `nuqs` in server mode makes the value available in `searchParams`.
+
+What `nuqs` buys that `useState` cannot: **URL as source of truth**. `useState` is ephemeral — it exists only for the lifetime of the component instance. `nuqs` makes the filter part of the application's addressable state, which means browser back/forward navigation restores it, and sharing the URL transfers the filter context to the recipient.
+
+**Location → `nuqs`**
+
+Same reasoning as keyword. A location filter ("London", "Remote") produces a result set that is meaningful and shareable. Both filters together form a compound query that deserves a stable URL: `?keyword=React&location=London`.
+
+**Status toggle (Open / All) → `useState`**
+
+This is a UI preference, not a query. The difference between "show open jobs only" and "show all jobs" is closer to a display mode than to a search filter. Users are unlikely to want to share a URL specifically because it shows closed listings. Persisting it to the URL adds noise (`?status=all`) without proportionate benefit. `useState` is the right choice here: it is simple, scoped to the component, and resets to a sensible default on each visit.
+
+**Does the employer dashboard need to know about any of these filters?**
+
+No. The `/dashboard/listings` page is a separate employer view with its own filtering concerns (e.g., filter by listing status: draft, published, closed). The candidate-facing job filters on `/jobs` are entirely unrelated. There is no shared state between these two surfaces, so Zustand (a cross-component store) is not appropriate for job filters at all.
+
+---
+
+## Part 4 — What the Nav Bar Knows
+
+### Why `await auth()` in `layout.tsx` Is Not a Performance Problem
+
+`auth()` in Next.js App Router reads the session from the cookie — it does not make a network request to a database or external service. The JWT is decoded and verified locally using the `NEXTAUTH_SECRET`. This is a synchronous cryptographic operation wrapped in an async interface; it completes in microseconds. There is no round-trip. Calling it in `layout.tsx` adds negligible overhead to the request, and because `layout.tsx` is a Server Component, the result is never sent as a separate client fetch — it is computed once per request on the server and inlined into the rendered HTML.
+
+### Passing the Session to a Deeply Nested Client Component
+
+There are two clean approaches:
+
+1. **Prop drilling from the nearest Server Component ancestor.** Call `await auth()` in the closest Server Component above the Client Component that needs the session, and pass `session.user` down as a prop. This is the right choice when only one or two components need it.
+
+2. **`SessionProvider` + `useSession()`**. Wrap the app (or a subtree) in `<SessionProvider>` in a Client Component boundary. Any Client Component anywhere in that tree can then call `useSession()` to get the session without props being threaded through every intermediate component. This is preferable when the session is needed in many unrelated Client Components.
+
+The `SessionProvider` approach avoids making every intermediate component aware of the session shape, which keeps the component tree cleaner at scale.
+
+### Why `useSession()` Exists Alongside `auth()` — and When to Reach for Each
+
+`auth()` is a **server-side function**. It can only be called in Server Components, Route Handlers, and Server Actions, because it reads from the request context (cookies). It is not available in Client Components.
+
+`useSession()` is a **client-side hook**. It reads the session from the `SessionProvider` context, which is populated by a lightweight client fetch to `/api/auth/session` on mount. It exists because Client Components have no access to `auth()` — they run in the browser, where there is no request object to read cookies from.
+
+**Reach for `auth()`** when you are in a Server Component, middleware, or a Server Action — anywhere you have access to the request. It is synchronous-feeling and does not cause a loading state.
+
+**Reach for `useSession()`** when you are in a Client Component that needs to react to session changes (e.g., a sign-out button that updates the UI immediately), or when you need the session in an interactive component that cannot be a Server Component.
+
+---
+
+## Part 5 — Extended Questions
+
+### The Role Redirect Decision
+
+The post-login redirect destination must be role-aware: candidates go to `/jobs`, employers go to `/dashboard`. The problem is that `signIn()` — called in a Server Action — completes before the redirect decision is made, and at the moment `signIn()` is invoked, the role is not yet available in the session (the session has not been written yet).
+
+The solution is to separate the sign-in from the redirect. The Server Action calls `signIn()`, which triggers the `authorize → jwt → session` relay and writes the session cookie. Once that resolves, the Server Action calls `auth()` to read the freshly written session, which now contains `session.user.role`. The redirect destination is computed from that role and returned to the client.
+
+```ts
+// Server Action
+export async function loginAction(formData: FormData) {
+  await signIn("credentials", {
+    email: formData.get("email"),
+    password: formData.get("password"),
+    redirect: false, // prevent NextAuth from redirecting; we'll handle it
+  });
+  const session = await auth(); // session now exists and contains role
+  if (session?.user.role === "employer") {
+    redirect("/dashboard");
+  } else {
+    redirect("/jobs");
+  }
+}
+```
+
+The key insight is `redirect: false` — this hands control back to the Server Action so it can read the session before deciding where to send the user.
+
+---
+
+### Middleware vs Page-Level Guards — General Principle and Examples
+
+**General principle:** Middleware handles identity (is the user authenticated?). Page components handle authorisation (does this authenticated user have permission?). Middleware is the right place for checks that are uniform, stateless, and need to short-circuit before any React rendering. Page components are the right place for checks that are semantic, role-specific, or involve application logic.
+
+**Middleware example — `/dashboard` authentication check**
+
+The rule "unauthenticated users cannot access `/dashboard`" lives in middleware because it requires no knowledge of role, no database query, and no application context. The check is: does a valid session cookie exist? If not, redirect to `/login`. This applies to every request to `/dashboard` and `/dashboard/*`, uniformly. Handling it in middleware means the request never reaches the React tree, which is both faster and cleaner.
+
+```ts
+// middleware.ts
+export function middleware(request: NextRequest) {
+  const token = getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  if (!token && request.nextUrl.pathname.startsWith("/dashboard")) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+}
+```
+
+**Page-level example — `/dashboard` employer-only guard**
+
+The rule "only employers can access `/dashboard`" lives in the page component because it requires reading the session's `role` field — a semantic property of the authenticated identity. An authenticated candidate who reaches `/dashboard` (having passed middleware's identity check) must be redirected to `/jobs`. This is an application-level decision. Putting it in the page component keeps middleware simple and makes the rule visible alongside the component it protects.
+
+```ts
+// app/dashboard/page.tsx
+export default async function DashboardPage() {
+  const session = await auth();
+  if (session?.user.role !== "employer") {
+    redirect("/jobs");
+  }
+  // ... render employer dashboard
+}
+```
+
+---
+
+### Why URL State for Job Filters
+
+**Sharing filtered views:** `useState` stores filter values in component memory. If a user copies the URL while a keyword filter is active, the URL contains no filter information — the recipient sees an unfiltered list. With `nuqs`, the keyword is serialised into the URL (`?keyword=React`). The URL is the state. Sharing it transfers the full context.
+
+**Browser back/forward behaviour:** `useState` does not interact with the browser history stack. Navigating back from a job detail page (`/jobs/[id]`) to `/jobs` re-mounts the component with default state — the filter is gone. `nuqs` writes each filter change as a history entry (or replaces the current one, depending on `history` option). Back navigation restores the previous filter state, which is the behaviour users expect from any other search engine or filtered list.
+
+**Bookmarking:** A bookmarked URL with `nuqs`-managed filters is a permanent, shareable link to a specific filtered view. A bookmarked URL with `useState`-managed filters is just `/jobs` — the filters are lost on every visit.
+
+These three benefits — sharing, back/forward, and bookmarking — are impossible with `useState` because `useState` has no connection to the URL. They are the core value proposition of URL state management, and `nuqs` provides them with a React-idiomatic API that handles serialisation, deserialisation, and type coercion automatically.
+
+---
+
+### Why Zustand Without Persist for the Dashboard View
+
+The employer dashboard view preference (e.g., card view vs table view) is session-level state — it should last for the current browsing session but reset when the user returns on another day. This is intentional. View preferences are low-stakes and users are accustomed to interfaces that default to a standard layout on each visit. Persisting this preference adds complexity without a compelling user benefit.
+
+**If it needed to persist:**
+
+- **`localStorage`:** Simple to implement. Store `{ viewMode: "table" }` under a key on write, read it on mount. The tradeoff is that it is device-local — a user who switches from laptop to phone sees the default, not their saved preference. It also requires a client-side read on mount, which can cause a flash of the default state before hydration.
+
+- **User preferences API endpoint (database-backed):** The preference is stored server-side, scoped to the user's account. It is available on any device, in any browser, without a flash. The tradeoff is additional API surface, a database column, and a fetch on every dashboard load. This is the correct choice if view preference is genuinely important to the user experience, but overkill for a simple toggle.
+
+For CareerHub at this stage, `localStorage` would be the proportionate choice if persistence became a requirement. A user preferences endpoint would be introduced only if the number of persisted preferences grew to the point where individual `localStorage` keys became unwieldy.
+
+---
+
+### The Async Server Component / Store Boundary
+
+`ListingsTable` cannot call `useStore` (or any Zustand hook) because it is a **Server Component**. React hooks are a client-side primitive — they rely on the React component lifecycle, which only exists in the browser. Server Components are rendered on the server to a static payload; there is no hook system, no component instance, and no Zustand runtime. Calling `useStore` in a Server Component throws an error at build or runtime.
+
+**The prop-passing pattern:**
+
+The solution is to read Zustand state at the nearest Client Component boundary and pass the result down as a prop.
+
+```tsx
+// DashboardShell.tsx — Client Component (the store boundary)
+"use client";
+import { useListingStore } from "@/stores/listingStore";
+import { ListingsTable } from "./ListingsTable";
+
+export function DashboardShell({ listings }: { listings: Listing[] }) {
+  const viewMode = useListingStore(state => state.viewMode); // hook is legal here
+  return <ListingsTable listings={listings} viewMode={viewMode} />;
+}
+```
+
+```tsx
+// ListingsTable.tsx — can be a Server Component or a plain component
+// It receives viewMode as a prop; it never touches the store
+export function ListingsTable({
+  listings,
+  viewMode,
+}: {
+  listings: Listing[];
+  viewMode: "card" | "table";
+}) {
+  // render based on props only
+}
+```
+
+```tsx
+// app/dashboard/listings/page.tsx — Server Component
+import { DashboardShell } from "@/components/DashboardShell";
+
+export default async function ListingsPage() {
+  const listings = await fetchListings(); // server-side data fetch
+  return <DashboardShell listings={listings} />;
+}
+```
+
+The pattern is: **Server Component fetches data → passes it to a Client Component boundary → the boundary reads the store and merges store state with server data → passes the combined result as props to the presentational component**. The store never crosses the server/client boundary directly; only serialisable props do.
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)
