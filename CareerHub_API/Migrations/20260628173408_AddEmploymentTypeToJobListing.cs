@@ -5,7 +5,7 @@
 namespace CareerHub_API.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialData : Migration
+    public partial class AddEmploymentTypeToJobListing : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
