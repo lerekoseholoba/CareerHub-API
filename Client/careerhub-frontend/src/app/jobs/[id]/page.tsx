@@ -2,11 +2,12 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { JobListing } from "../../types/index";
 import ApplicationForm from "../../components/ApplicationForm";
+import { auth } from "@/auth";
 
 async function getJob(id: string): Promise<JobListing> {
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/v1/Jobs/${id}`,
-    { next: { tags: ["jobs"] }}
+    { next: { tags: ["jobs"] } }
   );
 
   if (res.status === 404) notFound();
@@ -24,7 +25,10 @@ export default async function JobDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const job = await getJob(id);
+
+  // Run both fetches in parallel
+  const [job, session] = await Promise.all([getJob(id), auth()]);
+  const role = session?.user?.role;
 
   return (
     <main className="min-h-screen bg-gray-50 p-8 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
@@ -32,7 +36,7 @@ export default async function JobDetailPage({
 
         {/* Back link */}
         <Link
-          href="/"
+          href="/jobs"
           className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline dark:text-blue-400"
         >
           ← Back to jobs
@@ -50,14 +54,11 @@ export default async function JobDetailPage({
               </p>
             </div>
 
-            {/* Status badge */}
-            <span
-              className={
-                job.isOpen
-                  ? "shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300"
-                  : "shrink-0 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300"
-              }
-            >
+            <span className={
+              job.isOpen
+                ? "shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300"
+                : "shrink-0 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300"
+            }>
               {job.isOpen ? "Open" : "Closed"}
             </span>
           </div>
@@ -67,9 +68,33 @@ export default async function JobDetailPage({
           </p>
         </div>
 
-        {/* Application form or closed message */}
+        {/* Application section */}
         {job.isOpen ? (
-          <ApplicationForm jobId={job.id} jobTitle={job.title} />
+          <>
+            {role === "employer" && (
+              <div className="rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Employers cannot apply for jobs.
+                </p>
+              </div>
+            )}
+
+            {!session && (
+              <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  You must be signed in to apply.{" "}
+                  <Link href="/login" className="text-blue-600 hover:underline dark:text-blue-400">
+                    Sign in here.
+                  </Link>
+                </p>
+                <ApplicationForm jobId={job.id} jobTitle={job.title} />
+              </div>
+            )}
+
+            {role === "candidate" && (
+              <ApplicationForm jobId={job.id} jobTitle={job.title} />
+            )}
+          </>
         ) : (
           <div className="rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
