@@ -1,9 +1,11 @@
+// app/components/ApplicationForm.tsx
 "use client";
 
 import { z } from "zod";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { cn } from "../lib/utils";
 import { submitApplication } from "../lib/api";
 
@@ -85,6 +87,16 @@ export default function ApplicationForm({ jobId, jobTitle }: Props) {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["jobs"] });
       reset();
+      // Success is an API response to a completed action → toast
+      toast.success(`Application for "${jobTitle}" submitted!`, {
+        description: "We'll be in touch soon.",
+      });
+    },
+    onError: (error: Error) => {
+      // API failure is a response to a completed action → toast
+      toast.error("Submission failed", {
+        description: error.message,
+      });
     },
   });
 
@@ -95,59 +107,21 @@ export default function ApplicationForm({ jobId, jobTitle }: Props) {
     await mutation.mutateAsync({ ...data, jobId });
   };
 
-  // ── Success state: render confirmation panel instead of the form ──────────
-  if (mutation.isSuccess) {
-    return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-950">
-        <div className="mb-1 flex items-center gap-2">
-          <svg
-            className="h-5 w-5 text-green-600 dark:text-green-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-          <h2 className="text-base font-semibold text-green-800 dark:text-green-200">
-            Application submitted
-          </h2>
-        </div>
-        <p className="text-sm text-green-700 dark:text-green-300">
-          Your application for <span className="font-medium">{jobTitle}</span> has
-          been received. We'll be in touch soon.
-        </p>
-      </div>
-    );
-  }
-
-  // ── Field helper styles ───────────────────────────────────────────────────
+  // ── Styles ────────────────────────────────────────────────────────────────
   const inputBase =
     "w-full rounded-md border px-3 py-2 text-sm bg-white text-gray-900 " +
     "placeholder-gray-400 outline-none transition-colors " +
     "focus:ring-2 focus:ring-blue-500 focus:border-blue-500 " +
     "dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500";
 
-  const inputValid =
-    "border-gray-300 dark:border-gray-600";
-
+  const inputValid = "border-gray-300 dark:border-gray-600";
   const inputError =
     "border-red-400 dark:border-red-500 focus:ring-red-400 dark:focus:ring-red-500";
-
   const labelBase =
     "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
-
-  const fieldErrorMsg =
-    "mt-1 text-xs text-red-600 dark:text-red-400";
+  const fieldErrorMsg = "mt-1 text-xs text-red-600 dark:text-red-400";
 
   return (
-    /*
-     * noValidate disables the browser's built-in HTML5 constraint validation
-     * (the native popups for required, type="email", etc.). Without it, the
-     * browser would show its own error UI before React Hook Form gets a chance
-     * to run, producing duplicate or conflicting feedback. All validation is
-     * handled by Zod via zodResolver, so the native UI is unnecessary here.
-     */
     <form
       onSubmit={handleSubmit(onSubmit)}
       noValidate
@@ -157,16 +131,11 @@ export default function ApplicationForm({ jobId, jobTitle }: Props) {
         Apply for <span className="text-blue-600 dark:text-blue-400">{jobTitle}</span>
       </h2>
 
-      {/* ── Server-level error panel (Zod errors appear at the field level) ── */}
-      {mutation.isError && (
-        <div
-          role="alert"
-          className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-950 dark:text-red-300"
-        >
-          <span className="font-medium">Submission failed: </span>
-          {mutation.error?.message}
-        </div>
-      )}
+      {/*
+        ← The mutation.isError inline banner is REMOVED.
+           API errors now fire toast.error() in onError above.
+           Field-level validation errors remain inline below (correct per spec).
+      */}
 
       {/* Full Name */}
       <div>
@@ -207,7 +176,10 @@ export default function ApplicationForm({ jobId, jobTitle }: Props) {
       {/* Phone */}
       <div>
         <label htmlFor="phone" className={labelBase}>
-          Phone <span className="text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
+          Phone{" "}
+          <span className="text-gray-400 dark:text-gray-500 font-normal">
+            (optional)
+          </span>
         </label>
         <input
           id="phone"
@@ -234,7 +206,10 @@ export default function ApplicationForm({ jobId, jobTitle }: Props) {
           max={50}
           aria-invalid={!!errors.yearsOfExperience}
           {...register("yearsOfExperience")}
-          className={cn(inputBase, errors.yearsOfExperience ? inputError : inputValid)}
+          className={cn(
+            inputBase,
+            errors.yearsOfExperience ? inputError : inputValid
+          )}
         />
         {errors.yearsOfExperience && (
           <p className={fieldErrorMsg}>{errors.yearsOfExperience.message}</p>
@@ -252,7 +227,11 @@ export default function ApplicationForm({ jobId, jobTitle }: Props) {
           placeholder="Tell us why you're a great fit (50–2000 characters)…"
           aria-invalid={!!errors.coverLetter}
           {...register("coverLetter")}
-          className={cn(inputBase, "resize-y", errors.coverLetter ? inputError : inputValid)}
+          className={cn(
+            inputBase,
+            "resize-y",
+            errors.coverLetter ? inputError : inputValid
+          )}
         />
         {errors.coverLetter && (
           <p className={fieldErrorMsg}>{errors.coverLetter.message}</p>
@@ -262,7 +241,10 @@ export default function ApplicationForm({ jobId, jobTitle }: Props) {
       {/* LinkedIn URL */}
       <div>
         <label htmlFor="linkedInUrl" className={labelBase}>
-          LinkedIn URL <span className="text-gray-400 dark:text-gray-500 font-normal">(optional)</span>
+          LinkedIn URL{" "}
+          <span className="text-gray-400 dark:text-gray-500 font-normal">
+            (optional)
+          </span>
         </label>
         <input
           id="linkedInUrl"
@@ -306,8 +288,7 @@ export default function ApplicationForm({ jobId, jobTitle }: Props) {
           className={cn(
             inputBase,
             errors.noticePeriodWeeks ? inputError : inputValid,
-            availableImmediately &&
-              "cursor-not-allowed opacity-40 dark:opacity-30"
+            availableImmediately && "cursor-not-allowed opacity-40 dark:opacity-30"
           )}
         />
         {errors.noticePeriodWeeks && (
@@ -322,9 +303,7 @@ export default function ApplicationForm({ jobId, jobTitle }: Props) {
         className={cn(
           "w-full rounded-md px-4 py-2.5 text-sm font-semibold transition-colors",
           isBusy
-            ? // Visually distinct disabled state — darker bg + strikethrough cursor,
-              // not just reduced opacity, so the blocked state reads clearly
-              "cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-500"
+            ? "cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-gray-700 dark:text-gray-500"
             : "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 dark:bg-blue-500 dark:hover:bg-blue-600"
         )}
       >

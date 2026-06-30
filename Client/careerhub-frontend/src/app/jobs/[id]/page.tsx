@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { JobListing } from "../../types/index";
-import ApplicationForm from "../../components/ApplicationForm";
+import ApplicationWizard from "../../components/ApplicationWizard";
 import { auth } from "@/auth";
 
 async function getJob(id: string): Promise<JobListing> {
@@ -26,7 +26,6 @@ export default async function JobDetailPage({
 }) {
   const { id } = await params;
 
-  // Run both fetches in parallel
   const [job, session] = await Promise.all([getJob(id), auth()]);
   const role = session?.user?.role;
 
@@ -79,20 +78,20 @@ export default async function JobDetailPage({
               </div>
             )}
 
-            {!session && (
-              <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  You must be signed in to apply.{" "}
-                  <Link href="/login" className="text-blue-600 hover:underline dark:text-blue-400">
-                    Sign in here.
-                  </Link>
-                </p>
-                <ApplicationForm jobId={job.id} jobTitle={job.title} />
-              </div>
-            )}
-
-            {role === "candidate" && (
-              <ApplicationForm jobId={job.id} jobTitle={job.title} />
+            {/*
+              Signed-out and candidate cases both render the wizard now.
+              The wizard itself gates step 1 → step 2 based on isSignedIn/role,
+              per the assignment ("must not advance past step 1... inline message,
+              do not redirect"). We no longer branch the form out of the tree
+              for signed-out users.
+            */}
+            {role !== "employer" && (
+              <ApplicationWizard
+                jobId={job.id}
+                jobTitle={job.title}
+                isSignedIn={!!session}
+                role={role}
+              />
             )}
           </>
         ) : (
