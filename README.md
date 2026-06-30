@@ -2805,5 +2805,184 @@ export default async function ListingsPage() {
 ```
 
 The pattern is: **Server Component fetches data → passes it to a Client Component boundary → the boundary reads the store and merges store state with server data → passes the combined result as props to the presentational component**. The store never crosses the server/client boundary directly; only serialisable props do.
+
+# Assignment 2.4 -- Written Decisions
+
+## Question 1 --- Draft persistence strategy
+
+### Draft storage key
+
+I would use the key:
+
+`careerhub-application-draft:{jobId}`
+
+This scopes each draft to a specific job listing. If a candidate starts
+applications for multiple jobs simultaneously, each draft is stored
+independently and does not overwrite another. If a single key such as
+`careerhub-application-draft` were used, starting a second application
+would overwrite the first draft.
+
+Drafts stored in `localStorage` exist only in the current browser on the
+current device. If the same candidate signs in on another device, no
+draft is restored because `localStorage` is not synchronized between
+devices.
+
+### When the draft should be cleared
+
+The draft should be removed when: - The application is successfully
+submitted. - The candidate explicitly discards the draft. - The job
+listing is no longer accepting applications. - The draft is no longer
+compatible with the current form (for example, required fields have
+changed).
+
+### Safe fields to store
+
+Safe: - Name - Email - Phone number - Cover letter - Portfolio URL -
+Other non-sensitive text entered by the user
+
+Excluded: - Uploaded resume file - Authentication tokens - Session
+information - Server-generated identifiers
+
+Files and authentication data should not be stored in localStorage
+because they are either large, security-sensitive, or managed by the
+server.
+
+------------------------------------------------------------------------
+
+## Question 2 --- The skeleton loader contract
+
+Matching dimensions means the skeleton occupies the same layout as the
+finished job card. It should have the same width, height, padding,
+spacing, border radius and approximate line lengths so that replacing
+the skeleton with real data does not shift the layout.
+
+If a filtered result contains only three jobs but six skeletons are
+shown, users briefly believe more results are loading than will actually
+appear. The correct number of skeletons should match the expected
+layout. For CareerHub I would display six skeleton cards because that
+matches the normal grid shown during initial loading.
+
+The paired component pattern means every UI component has a matching
+skeleton designed specifically for it. If the component changes but the
+skeleton does not, layout shift, spacing differences and visual
+inconsistencies occur.
+
+------------------------------------------------------------------------
+
+## Question 3 --- AlertDialog vs alternatives
+
+### Closing a job
+
+Use **AlertDialog** because closing a listing is destructive and should
+require explicit confirmation.
+
+### Discarding a draft
+
+Use **AlertDialog** because deleting a draft is also destructive and
+irreversible.
+
+### Inline confirmation
+
+Inline confirmation is appropriate only for small, non-destructive
+actions where blocking the user's workflow is unnecessary.
+
+### Server Action challenge
+
+`CloseJobButton` currently uses a Server Action with `useActionState`,
+while `AlertDialog` is a client component.
+
+A key issue is that **AlertDialogAction is rendered in a React portal
+outside the original `<form>` element. Because it is no longer inside
+the form, `type="submit"` does nothing.**
+
+To solve this, the confirmation button should explicitly trigger the
+action instead of relying on form submission. This can be done by using
+either: - a client mutation (React Query), or - `useTransition()` to
+invoke the Server Action manually.
+
+Both approaches allow the dialog to confirm the action before the
+mutation runs.
+
+------------------------------------------------------------------------
+
+## Question 4 --- Empty state taxonomy
+
+Two different empty states exist:
+
+### No jobs exist
+
+This means the database contains no job listings. The UI should explain
+that no jobs are available yet.
+
+### Filters returned no matches
+
+Jobs exist, but none match the selected filters. The UI should encourage
+the user to clear or adjust filters.
+
+The distinction should be made client-side after the full job list has
+been loaded and filters have been applied. The server knows whether jobs
+exist, while the client knows whether filtering removed all visible
+results.
+
+------------------------------------------------------------------------
+
+# Additional Required Answers
+
+## Draft storage key decision
+
+Scoping the draft key to the job ID prevents different applications from
+overwriting one another. A single key would cause only one draft to
+exist at a time. If job requirements change while a draft is stored, the
+application should validate restored data and ignore or clear fields
+that are no longer valid.
+
+------------------------------------------------------------------------
+
+## Solving AlertDialog with a Server Action
+
+I would use `useTransition()` because it integrates naturally with
+Server Actions without replacing the existing server-side
+implementation.
+
+The challenge is that `AlertDialogAction` is rendered in a portal
+outside the form. Since it is no longer inside the form, `type="submit"`
+cannot submit the form. Instead, the confirmation button directly starts
+the transition that invokes the Server Action.
+
+------------------------------------------------------------------------
+
+## The Back button and validation
+
+The Back button should never trigger validation because the user is
+moving backwards, not forwards.
+
+For example, if the candidate reaches Step 3 and wants to edit
+information entered in Step 1, validation should not prevent navigation
+simply because Step 3 is incomplete. Blocking backward movement would
+make correcting mistakes frustrating.
+
+------------------------------------------------------------------------
+
+## Skeleton count justification
+
+I would display six skeleton cards because this matches the standard
+grid shown while jobs are loading.
+
+Showing too few skeletons suggests only a small amount of content
+exists, while showing too many suggests more content is expected than
+will actually appear. Matching the expected layout creates a stable
+loading experience.
+
+------------------------------------------------------------------------
+
+## Empty state taxonomy
+
+The application distinguishes between: - no jobs existing in the
+database, and - filters removing all matching jobs.
+
+This distinction happens client-side after filtering has been applied.
+The server provides the data, while only the client knows whether the
+user's current filters removed every visible result.
+
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)
