@@ -1,40 +1,31 @@
-export function JobCardSkeleton() {
+// Mirrors JobLinkCard's exact layout: p-4 padding, rounded-lg border, a
+// left column with three stacked text lines (title / company / location)
+// and a right column with two pill-shaped badges. Dimensions are matched
+// line-by-line against JobLinkCard rather than approximated, so swapping
+// a skeleton for a real card causes no layout shift.
+export default function JobCardSkeleton() {
   return (
     <div
-      className="
-        animate-pulse rounded-lg border p-4
-        bg-white border-gray-200
-        dark:bg-gray-900 dark:border-gray-700
-      "
+      aria-hidden="true"
+      className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900"
     >
-      {/* HEADER: title + badge */}
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="h-5 w-2/3 rounded bg-gray-300 dark:bg-gray-700" />
-        <div className="h-5 w-20 rounded bg-gray-300 dark:bg-gray-700" />
+      <div className="flex items-start justify-between gap-4">
+        {/* Left column — mirrors title (h2, text-sm), company (text-sm), location (text-xs) */}
+        <div className="space-y-2">
+          {/* title line — text-sm font-semibold height ≈ 14px line, slightly wider */}
+          <div className="h-3.5 w-36 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+          {/* company line — text-sm, shorter */}
+          <div className="h-3.5 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+          {/* location line — text-xs, shortest */}
+          <div className="h-3 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+        </div>
+
+        {/* Right column — mirrors the two JobStatusBadge pills */}
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <div className="h-5 w-16 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700" />
+          <div className="h-5 w-12 animate-pulse rounded-full bg-gray-200 dark:bg-gray-700" />
+        </div>
       </div>
-
-      {/* COMPANY + LOCATION */}
-      <div className="mb-3 h-4 w-1/2 rounded bg-gray-300 dark:bg-gray-700" />
-
-      {/* SALARY */}
-      <div className="mb-3 h-4 w-1/3 rounded bg-gray-300 dark:bg-gray-700" />
-
-      {/* FOOTER */}
-      <div className="flex items-center gap-3">
-        <div className="h-4 w-20 rounded bg-gray-300 dark:bg-gray-700" />
-        <div className="h-4 w-16 rounded bg-gray-300 dark:bg-gray-700" />
-        <div className="h-4 w-24 rounded bg-gray-300 dark:bg-gray-700" />
-      </div>
-    </div>
-  );
-}
-
-export function JobListSkeleton() {
-  return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <JobCardSkeleton key={index} />
-      ))}
     </div>
   );
 }

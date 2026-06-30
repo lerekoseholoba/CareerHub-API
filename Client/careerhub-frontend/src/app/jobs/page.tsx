@@ -1,6 +1,7 @@
 import type { JobListing } from "../types/index";
 import JobLinkCard from "../components/JobLinkCard";
 import JobFilters from "../components/JobFilters";
+import ClearFiltersButton from "../components/ClearFiltersButton";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,17 @@ export default async function JobsPage({
     return matchesKeyword && matchesLocation && matchesStatus;
   });
 
+  // ── Determine which empty state applies ──────────────────────────────
+  // The DB-empty case is determined from allJobs (the unfiltered set),
+  // not jobs (the filtered set) — this is the only correct signal, since
+  // jobs.length === 0 alone is ambiguous between "DB is empty" and
+  // "filters matched nothing." allJobs.length === 0 can only be true if
+  // the DB genuinely has no listings, because allJobs is fetched before
+  // any filter is applied.
+  const isDatabaseEmpty = allJobs.length === 0;
+  const filtersAreActive = q !== "" || location !== "" || status !== "all";
+  const noResultsFromFilters = !isDatabaseEmpty && jobs.length === 0 && filtersAreActive;
+
   return (
     <main className="min-h-screen bg-gray-50 p-8 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <div className="mx-auto max-w-4xl space-y-6">
@@ -61,11 +73,29 @@ export default async function JobsPage({
 
         <JobFilters />
 
-        {jobs.length === 0 ? (
+        {isDatabaseEmpty ? (
+          // State 1: no jobs in the DB at all — no action available
           <div className="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              No jobs match your filters.
+              No jobs are currently listed.
             </p>
+          </div>
+        ) : noResultsFromFilters ? (
+          // State 2: filters eliminated all results — offer a way out
+          <div className="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              No jobs match your search.
+            </p>
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+              {[
+                q && `keyword "${q}"`,
+                location && `location "${location}"`,
+                status !== "all" && `status "${status}"`,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+            <ClearFiltersButton />
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
