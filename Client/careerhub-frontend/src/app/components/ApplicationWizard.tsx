@@ -10,6 +10,16 @@ import Link from "next/link";
 import { cn } from "../lib/utils";
 import { submitApplication } from "../lib/api";
 import type { ApplicationRequest } from "../types";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "./ui/alert-dialog"; // adjust path to match your shadcn install location
 
 // ─────────────────────────────────────────────────────────────────────────
 // Schema — covers exactly the fields the wizard collects per spec.
@@ -41,10 +51,9 @@ const wizardSchema = z
       .union([z.string().max(2000, "Must be 2000 characters or fewer"), z.literal("")])
       .optional(),
     linkedInUrl: z.union([z.string().url("Enter a valid URL"), z.literal("")]).optional(),
-    // Native <select> always emits a string, never undefined — so an unselected
-    // option emits "" (the default <option value="">). z.enum(...).optional()
-    // alone rejects "" since "" isn't a member of the enum. Allowing the empty
-    // string explicitly is what lets the field be left unselected.
+    // Native <select> always emits a string, never undefined — an unselected
+    // option emits "" (the default <option value="">), so the empty string
+    // must be allowed explicitly alongside the enum members.
     heardAbout: z
       .union([z.enum(HEARD_ABOUT_OPTIONS), z.literal("")])
       .optional(),
@@ -94,6 +103,8 @@ export default function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }:
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
   const [draftRestored, setDraftRestored] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const storageKey = `careerhub-application-${jobId}`;
 
   // Guards against the localStorage save effect firing before the mount-time
@@ -125,6 +136,7 @@ export default function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }:
         const parsed = JSON.parse(saved) as WizardFormData;
         reset(parsed);
         setDraftRestored(true);
+        setHasDraft(true);
       }
     } catch {
       // Corrupt or inaccessible localStorage — fail silently, start fresh
@@ -147,6 +159,7 @@ export default function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }:
       if (!hasHydrated.current) return; // don't save until after restore check
       try {
         localStorage.setItem(storageKey, JSON.stringify(values));
+        setHasDraft(true); // reactive: "Discard draft" button appears as soon as anything is saved
       } catch {
         // localStorage may be unavailable (private browsing, quota) — ignore
       }
@@ -159,6 +172,7 @@ export default function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }:
     if (!hasHydrated.current) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(getValues()));
+      setHasDraft(true);
     } catch {
       // ignore
     }
@@ -168,11 +182,7 @@ export default function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }:
     mutationFn: submitApplication,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      try {
-        localStorage.removeItem(storageKey);
-      } catch {
-        // ignore
-      }
+      clearDraft();
       toast.success(`Application for "${jobTitle}" submitted!`, {
         description: "We'll be in touch soon.",
       });
@@ -203,6 +213,26 @@ export default function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }:
   function goBack() {
     // Intentionally does NOT call trigger() — see README note on why.
     setStep((s) => Math.max(s - 1, 1));
+  }
+
+  // ── Draft helpers ──────────────────────────────────────────────────────
+  function clearDraft() {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // ignore
+    }
+    setHasDraft(false);
+    setDraftRestored(false);
+  }
+
+  function handleDiscardDraft() {
+    // Pure client-side state manipulation — no Server Action, no mutation.
+    clearDraft();
+    reset(DEFAULT_VALUES);
+    setStep(1);
+    setDiscardDialogOpen(false);
+    toast.success("Draft discarded");
   }
 
   // ── Reconcile wizard data → full ApplicationRequest ─────────────────────
@@ -247,9 +277,61 @@ export default function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }:
       className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900"
     >
       <div>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          Apply for <span className="text-blue-600 dark:text-blue-400">{jobTitle}</span>
-        </h2>
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Apply for <span className="text-blue-600 dark:text-blue-400">{jobTitle}</span>
+          </h2>
+
+          {/* Discard Draft — only rendered when a draft actually exists */}
+          {hasDraft && (
+            <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+              <button
+                type="button"
+                onClick={() => setDiscardDialogOpen(true)}
+                className="shrink-0 text-xs font-medium text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 transition-colors"
+              >
+                Discard draft
+              </button>
+
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Discard your draft?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Your saved application progress will be permanently
+                    deleted. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  {/*
+                    This shadcn install's generated AlertDialogCancel/
+                    AlertDialogAction types make `variant` and `size`
+                    required props (no defaults), so they must be passed
+                    explicitly.
+                  */}
+                  <AlertDialogCancel variant="outline" size="default">
+                    Keep draft
+                  </AlertDialogCancel>
+                  {/*
+                    Same portal constraint as CloseJobButton: AlertDialogAction
+                    renders outside this <form>, so type="submit" would do
+                    nothing. Unlike CloseJobButton, this isn't a Server Action
+                    at all — handleDiscardDraft() is pure client-side state
+                    manipulation (localStorage.removeItem + form.reset), so
+                    onClick is the natural and only choice here.
+                  */}
+                  <AlertDialogAction
+                    variant="default"
+                    size="default"
+                    onClick={handleDiscardDraft}
+                    className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
+                  >
+                    Discard draft
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
 
         {/* Step indicator */}
         <div className="mt-3 flex items-center gap-2">
