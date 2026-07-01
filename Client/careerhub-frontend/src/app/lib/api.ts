@@ -23,7 +23,9 @@ export async function fetchJobs(): Promise<PagedJobsResponse> {
 export async function submitApplication(
   application: ApplicationRequest
 ): Promise<ApplicationResponse> {
-  const res = await fetch("/api/applications", {
+  if (!BASE_URL) throw new Error("NEXT_PUBLIC_API_URL is not defined");
+
+  const res = await fetch(`${BASE_URL}/api/applications`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(application),
@@ -44,7 +46,9 @@ export async function submitApplication(
 export async function createJob(
   job: CreateJobRequest
 ): Promise<CreateJobResponse> {
-  const res = await fetch("/api/jobs", {
+  if (!BASE_URL) throw new Error("NEXT_PUBLIC_API_URL is not defined");
+
+  const res = await fetch(`${BASE_URL}/api/jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(job),
