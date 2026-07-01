@@ -18,8 +18,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CareerHub",
-  description: "Job listing application",
+  title: {
+    template: "%s | CareerHub",
+    default: "CareerHub — Find Your Next Role",
+  },
+  description:
+    "CareerHub connects job seekers with employers, making it easy to discover, post, and apply for roles in one place.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  ),
+  openGraph: {
+    siteName: "CareerHub",
+    type: "website",
+  },
 };
 
 export default async function RootLayout({
