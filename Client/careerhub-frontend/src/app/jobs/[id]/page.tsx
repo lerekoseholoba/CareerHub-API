@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import type { JobListing } from "../../types/index";
 import ApplicationWizard from "../../components/ApplicationWizard";
 import { auth } from "@/auth";
@@ -17,6 +18,32 @@ async function getJob(id: string): Promise<JobListing> {
   }
 
   return res.json() as Promise<JobListing>;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+
+  try {
+    const job = await getJob(id);
+
+    const description = `Apply for ${job.title} at ${job.company} in ${job.location}.`;
+
+    return {
+      title: job.title,
+      description,
+      openGraph: {
+        title: job.title,
+        description,
+        type: "website",
+      },
+    };
+  } catch {
+    return { title: "Job Not Found" };
+  }
 }
 
 export default async function JobDetailPage({

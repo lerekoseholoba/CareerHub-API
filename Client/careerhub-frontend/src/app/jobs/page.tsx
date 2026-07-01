@@ -1,134 +1,109 @@
-import { notFound } from "next/navigation";
-import Link from "next/link";
-import type { Metadata } from "next";
 import type { JobListing } from "../types/index";
-import ApplicationWizard from "../components/ApplicationWizard";
-import { auth } from "@/auth";
+import JobLinkCard from "../components/JobLinkCard";
+import JobFilters from "../components/JobFilters";
+import ClearFiltersButton from "../components/ClearFiltersButton";
 
-async function getJob(id: string): Promise<JobListing> {
+export const dynamic = "force-dynamic";
+
+async function getJobs(): Promise<JobListing[]> {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/v1/Jobs/${id}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/v1/Jobs`,
     { next: { tags: ["jobs"] } }
   );
 
-  if (res.status === 404) notFound();
-
   if (!res.ok) {
-    throw new Error(`Failed to fetch job. HTTP status: ${res.status}`);
+    throw new Error(`Failed to fetch jobs. HTTP status: ${res.status}`);
   }
 
-  return res.json() as Promise<JobListing>;
+  const json = await res.json() as { data: JobListing[] };
+  return json.data;
 }
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-
-  try {
-    const job = await getJob(id);
-
-    const description = `Apply for ${job.title} at ${job.company} in ${job.location}.`;
-
-    return {
-      title: job.title,
-      description,
-      openGraph: {
-        title: job.title,
-        description,
-        type: "website",
-      },
-    };
-  } catch {
-    return { title: "Job Not Found" };
-  }
+interface SearchParams {
+  q?: string;
+  location?: string;
+  status?: string;
 }
 
-export default async function JobDetailPage({
-  params,
+export default async function JobsPage({
+  searchParams,
 }: {
-  params: Promise<{ id: string }>;
+  searchParams: Promise<SearchParams>;
 }) {
-  const { id } = await params;
+  const { q = "", location = "", status = "all" } = await searchParams;
 
-  const [job, session] = await Promise.all([getJob(id), auth()]);
-  const role = session?.user?.role;
+  const allJobs = await getJobs();
+
+  // Filter in JS after cache retrieval — API does not support query params
+  const jobs = allJobs.filter((job) => {
+    const keyword = q.toLowerCase();
+    const loc     = location.toLowerCase();
+
+    const matchesKeyword =
+      keyword === "" ||
+      job.title.toLowerCase().includes(keyword) ||
+      job.description.toLowerCase().includes(keyword);
+
+    const matchesLocation =
+      loc === "" ||
+      job.location.toLowerCase().includes(loc);
+
+    const matchesStatus =
+      status === "all" ||
+      (status === "open" && job.isOpen);
+
+    return matchesKeyword && matchesLocation && matchesStatus;
+  });
+
+  // ── Determine which empty state applies ──────────────────────────────
+  // The DB-empty case is determined from allJobs (the unfiltered set),
+  // not jobs (the filtered set) — this is the only correct signal, since
+  // jobs.length === 0 alone is ambiguous between "DB is empty" and
+  // "filters matched nothing." allJobs.length === 0 can only be true if
+  // the DB genuinely has no listings, because allJobs is fetched before
+  // any filter is applied.
+  const isDatabaseEmpty = allJobs.length === 0;
+  const filtersAreActive = q !== "" || location !== "" || status !== "all";
+  const noResultsFromFilters = !isDatabaseEmpty && jobs.length === 0 && filtersAreActive;
 
   return (
     <main className="min-h-screen bg-gray-50 p-8 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      <div className="mx-auto max-w-2xl space-y-6">
+      <div className="mx-auto max-w-4xl space-y-6">
+        <h1 className="text-3xl font-bold">Job Listings</h1>
 
-        {/* Back link */}
-        <Link
-          href="/jobs"
-          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline dark:text-blue-400"
-        >
-          ← Back to jobs
-        </Link>
+        <JobFilters />
 
-        {/* Job details */}
-        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <div className="mb-4 flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {job.title}
-              </h1>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                {job.company} · {job.location}
-              </p>
-            </div>
-
-            <span className={
-              job.isOpen
-                ? "shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300"
-                : "shrink-0 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300"
-            }>
-              {job.isOpen ? "Open" : "Closed"}
-            </span>
-          </div>
-
-          <p className="whitespace-pre-line text-sm leading-relaxed text-gray-700 dark:text-gray-300">
-            {job.description}
-          </p>
-        </div>
-
-        {/* Application section */}
-        {job.isOpen ? (
-          <>
-            {role === "employer" && (
-              <div className="rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Employers cannot apply for jobs.
-                </p>
-              </div>
-            )}
-
-            {/*
-              Signed-out and candidate cases both render the wizard now.
-              The wizard itself gates step 1 → step 2 based on isSignedIn/role,
-              per the assignment ("must not advance past step 1... inline message,
-              do not redirect"). We no longer branch the form out of the tree
-              for signed-out users.
-            */}
-            {role !== "employer" && (
-              <ApplicationWizard
-                jobId={job.id}
-                jobTitle={job.title}
-                isSignedIn={!!session}
-                role={role}
-              />
-            )}
-          </>
-        ) : (
-          <div className="rounded-lg border border-gray-200 bg-white p-6 text-center shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              This position is no longer accepting applications.
+        {isDatabaseEmpty ? (
+          // State 1: no jobs in the DB at all — no action available
+          <div className="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              No jobs are currently listed.
             </p>
           </div>
+        ) : noResultsFromFilters ? (
+          // State 2: filters eliminated all results — offer a way out
+          <div className="rounded-lg border border-gray-200 bg-white p-12 text-center dark:border-gray-700 dark:bg-gray-900">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              No jobs match your search.
+            </p>
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+              {[
+                q && `keyword "${q}"`,
+                location && `location "${location}"`,
+                status !== "all" && `status "${status}"`,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </p>
+            <ClearFiltersButton />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {jobs.map((job) => (
+              <JobLinkCard key={job.id} job={job} />
+            ))}
+          </div>
         )}
-
       </div>
     </main>
   );
