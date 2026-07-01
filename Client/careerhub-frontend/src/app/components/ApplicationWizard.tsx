@@ -253,7 +253,13 @@ export default function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }:
       availableImmediately: true,
       noticePeriodWeeks: 0,
     };
-    await mutation.mutateAsync(payload);
+    try {
+      await mutation.mutateAsync(payload);
+    } catch {
+      // Already handled by mutation.onError (toast shown, form left as-is).
+      // Swallowed here so it doesn't also surface as an unhandled rejection
+      // in the console / test output.
+    }
   };
 
   const isBusy = isSubmitting || mutation.isPending;
