@@ -17,5 +17,10 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Forces Node's module resolution condition for packages with
+    // conditional exports (like msw), overriding jsdom's default
+    // "browser" condition — without this, msw/node/package.json's
+    // "browser": null entry silently breaks the import.
+    conditions: ["node"],
   },
 });
