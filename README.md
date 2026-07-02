@@ -2984,5 +2984,57 @@ This distinction happens client-side after filtering has been applied.
 The server provides the data, while only the client knows whether the
 user's current filters removed every visible result.
 
+# Assignment-3.3-frontend
+
+## Part 1 — Written Decisions
+
+### Question 1 — Image Audit
+
+| Location | Source | Above the fold? | `next/image` candidate? |
+|---|---|---|---|
+| Home page hero illustration | Local file, `/public/hero.svg` (created as placeholder — no hero image existed previously) | Yes, first thing rendered on page load | Yes — converted, with `priority` |
+| Company logo on `JobLinkCard` (job listings) | Local file, `/public/company-logo-placeholder.svg` (created as placeholder — no logo previously rendered) | No — repeated per card in a scrollable list, not singularly above the fold | Yes — converted, **without** `priority` (logos in a list are not above the fold in aggregate) |
+| Employer profile image | N/A — no employer profile/dashboard image feature exists in this implementation | N/A | Not applicable — feature not built |
+
+**Highest-priority image for `priority` prop:** the home page hero (`/public/hero.svg`). It's the single largest visual element rendered immediately on first paint of the most-visited page in the app, making it the most likely candidate to be the Largest Contentful Paint (LCP) element. Marking it `priority` tells Next.js to preload it rather than lazy-load it, directly reducing LCP.
+
+### Question 2 — The ApplicationWizard Loading Decision
+
+**a. Does `ssr: false` make sense on `ApplicationWizard`? What breaks with `ssr: true`?**
+Yes, `ssr: false` makes sense. `ApplicationWizard` reads from `localStorage` on mount to restore a saved draft — `localStorage` doesn't exist on the server, so that logic only ever runs client-side regardless. Setting `ssr: true` wouldn't break functionally (the `useEffect` guards handle the absence gracefully), but it would defeat the entire purpose of the dynamic import: React Hook Form, Zod, `@hookform/resolvers`, TanStack Query, and the Radix-based `AlertDialog` would all be included in the server-rendered HTML and, more importantly, added back into the client hydration bundle — which is exactly the weight we're trying to split out.
+
+**b. Does loading `ApplicationWizard`'s JS eagerly harm a signed-out user? What metric does it affect?**
+Yes. A signed-out user sees the job details and an inline "sign in to apply" message — they cannot interact with the wizard at all, yet without code-splitting they'd still download, parse, and execute all of its dependencies. This doesn't directly affect LCP (the largest paint is likely the job title/details block, not the wizard), but it does inflate **Total Blocking Time (TBT)** and overall JS payload size, which drags down Time to Interactive and, in aggregate, the Performance score.
+
+**c. Why are the existing `ApplicationWizard` tests unaffected by the dynamic import?**
+The tests (`ApplicationWizard.test.tsx`) import the component directly from its source file: `import { ApplicationWizard } from "@/app/components/ApplicationWizard"`. The dynamic import with `next/dynamic` only exists inside `ApplicationWizardClient.tsx`, a separate wrapper file used exclusively by the page component. Since the tests never touch that wrapper, they render the real component synchronously exactly as before — `next/dynamic` is a page-rendering concern, not a property of the component itself.
+
+### Question 3 — Static vs. Dynamic Metadata
+
+| Page | Approach | Why |
+|---|---|---|
+| Home page (`/`) | Static `metadata` export | Content is fixed and identical for every visitor — no per-request or per-user variation. |
+| Job listings (`/jobs`) | Static `metadata` export | The page's own shell/title doesn't depend on API data — it's the same "Jobs" heading regardless of which jobs are currently listed. |
+| Job detail (`/jobs/[id]`) | `generateMetadata` | Content is entirely dependent on dynamic route data (job title, company, location) fetched from the API per request — there's no static value that would be accurate. |
+
+**The deduplication question:** Both `generateMetadata` and the page component call the same `getJob(id)` function, which uses the built-in `fetch()` API with the same URL and options (`{ next: { tags: ["jobs"] } }`) both times. Next.js automatically deduplicates identical `fetch()` calls within a single render pass — internally it memoizes the request so that the second call returns the already-in-flight (or already-resolved) response instead of issuing a new network request. This only works because both calls happen within the same server-side request lifecycle and use `fetch()` with matching URL + options; if `getJob` instead queried a database directly, or if the two calls used different cache options, the deduplication would break and you'd get two real network round trips.
+
+### Question 4 — Before Lighthouse Numbers (see table below)
+
+## Before/After Lighthouse Table
+
+| Metric | Before | After |
+|---|---|---|
+| Performance score | 83 | 100 |
+| LCP (value + label) | 3.1s — Needs Improvement | 0.6s — Good |
+| CLS (value + label) | 0.07 — Good | 0 — Good |
+| INP (value + label) | 162ms — Good (dev mode, may be unreliable) | ~85ms — Good * |
+| SEO score | 91 | 100 |
+
+**Which change had the most impact:** The dynamic import of `ApplicationWizard` (Part 4) is almost certainly the biggest driver of the LCP and overall Performance jump — removing React Hook Form, Zod, and the Radix AlertDialog from the initial bundle on the job detail page (and, by extension, reducing the JS the browser has to parse before painting) has an outsized effect on both LCP and TBT. The `next/image` conversions (Part 3) likely contributed a smaller, secondary improvement to LCP specifically on the home page by properly sizing and serving the hero image. The SEO jump from 91 to 100 is fully attributable to Part 2 — the title template, meta description, and Open Graph tags resolved whatever specific SEO flags Lighthouse was raising beforehand (e.g. missing meta description).
+
+## One Metric You Could Not Move
+
+**INP** is the metric we could not reliably move or measure. Lighthouse's lab-based Navigation mode does not always report INP directly (it's fundamentally an interaction-based metric, requiring real user input events to measure), so both the "before" and "after" numbers here are either dev-mode approximations or estimates rather than trustworthy field data. To actually move and validate INP, this app would need to be deployed to production and measured with **real-user monitoring (RUM)** — e.g. via the Chrome UX Report (CrUX), Vercel Analytics, or a similar field-data tool — since INP depends on real interaction timing, JavaScript execution on the user's actual device, and network conditions that a local Lighthouse lab run cannot fully simulate. This is an infrastructure/monitoring change, not a code change.
 **Lereko Seholoba**
 Software Development Trainee (Bitcube)
