@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { renderWithProviders } from "./utils";
 import { server } from "./msw/server";
-import ApplicationWizard from "@/app/components/ApplicationWizard";
+import { ApplicationWizard } from "@/app/components/ApplicationWizard";
 
 const defaultProps = {
   jobId: "1",

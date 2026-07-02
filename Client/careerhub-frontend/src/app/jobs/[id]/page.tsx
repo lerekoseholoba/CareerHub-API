@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { JobListing } from "../../types/index";
-import ApplicationWizard from "../../components/ApplicationWizard";
+import ApplicationWizard from "../../components/ApplicationWizardClient";
 import { auth } from "@/auth";
 
 async function getJob(id: string): Promise<JobListing> {
@@ -105,13 +105,6 @@ export default async function JobDetailPage({
               </div>
             )}
 
-            {/*
-              Signed-out and candidate cases both render the wizard now.
-              The wizard itself gates step 1 → step 2 based on isSignedIn/role,
-              per the assignment ("must not advance past step 1... inline message,
-              do not redirect"). We no longer branch the form out of the tree
-              for signed-out users.
-            */}
             {role !== "employer" && (
               <ApplicationWizard
                 jobId={job.id}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import CloseJobButton from "./CloseJobButton";
-import type { JobListing } from "../app/types/index";
+import type { JobListing } from "../types/index";
 
 interface Props {
   jobs: JobListing[];

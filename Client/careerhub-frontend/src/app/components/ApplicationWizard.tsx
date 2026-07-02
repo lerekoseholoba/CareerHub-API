@@ -99,7 +99,7 @@ type Props = {
   role?: string;
 };
 
-export default function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }: Props) {
+  export function ApplicationWizard({ jobId, jobTitle, isSignedIn, role }: Props)  {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
   const [draftRestored, setDraftRestored] = useState(false);
